@@ -19,6 +19,8 @@
 ^FIXES_SUMMARY\.md$
 ^cheatsheet$
 ^inst/cheatsheet/.*\.html$
+^cheatsheet/.*\.pdf$
+^cheatsheet/.*\.png$
 ^\.github$
 ^19-state-of-the-art\.Rmd$
 ^HANDOFF\.md$
