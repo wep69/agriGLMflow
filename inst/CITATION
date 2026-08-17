@@ -1,0 +1,9 @@
+citHeader("To cite agriGLMflow in publications use:")
+
+bibentry(
+  bibtype = "Manual",
+  title = "agriGLMflow: Unified Generalized, Mixed and Distributional Modelling Workflows for Agricultural Experiments",
+  author = person("agriGLMflow", "Development Team"),
+  year = "2026",
+  note = "R package version 0.1.0"
+)

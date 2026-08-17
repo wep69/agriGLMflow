@@ -1,0 +1,28 @@
+---
+title: "Quantitative treatments and dose-response"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quantitative treatments and dose-response}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Preserve quantitative treatments
+
+Doses are not converted to factors automatically.
+
+```{r}
+data(agri_dose)
+q <- agri_regression(agri_dose,"yield","dose",model="quadratic")
+q$targets
+```
+
+Available fixed-form curves include linear, quadratic, cubic, linear plateau, quadratic plateau, Mitscherlich, Michaelis-Menten, logistic, Gompertz and Weibull models. GAM and VGAM smoothers provide flexible alternatives.
+
+Polynomial terms can be embedded in GLMMs so a quantitative treatment can coexist with non-Gaussian distributions and random blocks. Nonlinear mixed models are not silently approximated.

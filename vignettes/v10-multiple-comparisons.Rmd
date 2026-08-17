@@ -1,0 +1,47 @@
+---
+title: "Multiple comparisons and planned contrasts"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multiple comparisons and planned contrasts}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Post-model inference
+
+`emmeans` is used for model classes it supports natively. Available adjustments include Tukey, Dunnett, Holm, Sidak and FDR-compatible methods.
+
+```{r}
+fit <- agri_model(agri_insects, response="insects", design=des, family="nbinom2")
+agri_means(fit,"treatment",scale="response")
+agri_contrasts(fit,"treatment",method="pairwise",adjust="tukey")
+```
+
+For VGAM multinomial or compositional models, the post-hoc target is a standardized category probability or composition rather than an artificial scalar mean. `agri_means()` therefore standardizes predictions over the observed covariate distribution and can bootstrap confidence intervals.
+
+# Treatment-versus-control comparisons
+
+Dunnett inference is exposed explicitly rather than being treated as a synonym
+for all pairwise comparisons.
+
+```{r}
+agri_contrasts(
+  fit,
+  specs = "treatment",
+  method = "dunnett",
+  control = "Control",
+  scale = "response"
+)
+```
+
+For model classes natively supported by `emmeans`, the package uses the
+corresponding treatment-versus-control contrast family. For standardized VGAM
+and GLMMadaptive predictions, a bootstrap route is used when simultaneous
+inference is requested; unsupported adjustments are reported rather than
+silently approximated.

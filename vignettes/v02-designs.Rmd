@@ -1,0 +1,31 @@
+---
+title: "Experimental designs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Experimental designs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Core designs
+
+The design object identifies treatments, blocks and experimental units. CRD, RCBD, Latin square and factorial designs are directly supported.
+
+```{r}
+data(agri_insects)
+d <- agri_design(agri_insects, "rcbd", treatment="treatment", block="block")
+agri_design_info(d)
+agri_design_formula(d, "insects")
+```
+
+When blocks are random, a random intercept is generated. A user may explicitly declare a blocking factor fixed, but the choice is recorded.
+
+# Why design precedes family
+
+A Poisson GLM and Poisson GLMM have the same conditional response family but different independence assumptions. Family screening cannot be scientifically valid until the experimental unit is known.

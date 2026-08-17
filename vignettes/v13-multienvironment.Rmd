@@ -1,0 +1,29 @@
+---
+title: "Multi-environment experiments"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multi-environment experiments}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Environment is mandatory
+
+```{r}
+data(agri_multienv)
+d <- agri_design(agri_multienv,"multi_environment",genotype="genotype",
+  environment="environment",block="block")
+```
+
+A multi-environment declaration without `environment` is an error. Blocks are nested within environments, and genotype, environment and genotype-by-environment terms may be declared fixed or random.
+
+```{r}
+# Leakage-safe validation
+# cv <- agri_cv(fit, scheme="leave_one_environment_out")
+```

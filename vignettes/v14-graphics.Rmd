@@ -1,0 +1,25 @@
+---
+title: "Scientific graphics and reporting"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Scientific graphics and reporting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+`agriGLMflow` graphics return `ggplot2` objects. The default philosophy is observed data plus model estimates and uncertainty rather than isolated mean bars.
+
+```{r}
+agri_plot_data(agri_insects,"insects","treatment",type="boxplot")
+agri_plot(fit,type="fit")
+agri_plot(fit,type="zero")
+agri_plot(fit,type="means",specs="treatment")
+```
+
+Reports record design, response type, family, engine, convergence, diagnostics and the audit trail. Markdown requires no external document converter; HTML, DOCX and PDF can be rendered with `rmarkdown` when available.

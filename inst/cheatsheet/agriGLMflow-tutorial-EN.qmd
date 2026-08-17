@@ -1,0 +1,505 @@
+---
+title: "agriGLMflow Tutorial: Complete Modeling Workflows for Agronomic Experiments"
+subtitle: "From Planning to Inference in English"
+author: "Walter E. Pereira and Magali H. P. Martinez"
+date: today
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: show
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  warning: false
+  message: false
+  eval: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 5,
+  fig.align = "center"
+)
+set.seed(2026)
+# Load the package via devtools (during development)
+if (requireNamespace("agriGLMflow", quietly = TRUE)) {
+  library(agriGLMflow)
+} else {
+  devtools::load_all(system.file(package = "agriGLMflow"), quiet = TRUE)
+}
+```
+
+## Introduction {.unnumbered}
+
+This tutorial shows, step by step, how to use the `agriGLMflow` package to
+analyze agronomic experiments. Each section begins with a **domain question**,
+shows the data before the formulas, and guides the complete analysis
+through to inference and plots.
+
+**What you will learn:**
+
+- How to correctly declare the experimental design
+- How to identify the appropriate distribution family
+- How to fit models and compare statistical engines
+- How to perform post-model inference (means, contrasts, trends)
+- How to generate publication-quality graphs
+
+```{r}
+packageVersion("agriGLMflow")
+R.version.string
+```
+
+## Workflow 1: Qualitative Factor (RCBD with Counts) {.unnumbered}
+
+### Domain Question
+
+> Does a biofertilizer reduce insect infestation in a bean crop?
+> Is the effect consistent across blocks?
+
+### 1.1 Prepare the Data
+
+```{r}
+# Load insect count data
+data("agri_insects", package = "agriGLMflow")
+
+# First rows
+head(agri_insects, 10)
+
+# Summary by treatment
+aggregate(insects ~ treatment, data = agri_insects,
+          FUN = function(x) c(mean = mean(x), sd = sd(x), n = length(x)))
+```
+
+### 1.2 Declare the Design
+
+```{r}
+# Create RCBD design object
+des <- agri_design(
+  data = agri_insects,
+  design = "rcbd",
+  treatment = treatment,
+  block = block
+)
+print(des)
+```
+
+### 1.3 Characterize the Response
+
+```{r}
+# Characterize the response variable (counts)
+resp <- agri_response(
+  data = agri_insects,
+  response = "insects"
+)
+print(resp)
+```
+
+### 1.4 Identify Candidate Families
+
+```{r}
+# Which families are suitable for non-negative integer counts?
+cands <- agri_family_candidates(resp, tier = 1L)
+print(cands)
+```
+
+### 1.5 Fit the Model
+
+```{r}
+# Fit model with auto family (automatic selection)
+# The resp object (agri_response) is passed directly
+fit <- agri_model(
+  data = agri_insects,
+  response = resp,
+  design = des,
+  family = "auto"
+)
+
+# Fit summary
+summary(fit$engine_fit)
+```
+
+### 1.6 Diagnostics
+
+```{r}
+# Complete diagnostics
+diag <- agri_diagnose(fit)
+print(diag)
+```
+
+### 1.7 Post-Model Inference
+
+```{r}
+# Marginal means by treatment
+emm <- agri_means(fit, specs = ~ treatment, scale = "response")
+print(emm)
+```
+
+```{r}
+# Tukey contrasts (pairwise treatment comparisons)
+# Note: for glmmTMB Poisson models with block, contrasts
+# may require explicit specs
+contr <- tryCatch(
+  agri_contrasts(fit, specs = ~ treatment, method = "pairwise",
+                 adjust = "tukey", scale = "response"),
+  error = function(e) {
+    cat("Contrasts via emmeans directly:\n")
+    emmeans::emmeans(fit$engine_fit, pairwise ~ treatment, type = "response")
+  }
+)
+print(contr)
+```
+
+### 1.8 Plots
+
+```{r}
+#| fig-cap: "Marginal means by treatment with confidence intervals"
+# Means plot with ggplot2 directly
+library(ggplot2)
+emm_df <- emm$table
+ggplot(emm_df, aes(x = treatment, y = response)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL), width = 0.2) +
+  labs(x = "Treatment", y = "Mean Insects",
+       title = "Marginal Means by Treatment") +
+  theme_minimal()
+```
+
+```{r}
+#| fig-cap: "Residual diagnostics"
+# Residual plot with ggplot2
+# For glmmTMB, use fitted() and residuals()
+resid_df <- data.frame(
+  fitted = fitted(fit$engine_fit),
+  residuals = residuals(fit$engine_fit, type = "pearson")
+)
+ggplot(resid_df, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(x = "Fitted Values", y = "Pearson Residuals",
+       title = "Residuals vs Fitted Values") +
+  theme_minimal()
+```
+
+### Lesson
+
+> For counts with a block effect, the Poisson model with a random block
+> preserves the experimental unit and provides estimates with statistical
+> validity. Do not use `aov()` for counts: it assumes normality.
+
+## Workflow 2: Quantitative Factor (Dose-Response Regression) {.unnumbered}
+
+### Domain Question
+
+> What is the optimal nitrogen dose that maximizes yield?
+> Does the response follow a quadratic curve with a plateau?
+
+### 2.1 Prepare the Data
+
+```{r}
+data("agri_dose", package = "agriGLMflow")
+head(agri_dose)
+
+# Exploratory plot
+plot(yield ~ dose, data = agri_dose,
+     main = "Yield vs Nitrogen Dose",
+     xlab = "Dose (kg/ha)", ylab = "Yield (t/ha)")
+```
+
+### 2.2 Fit Regression Models
+
+```{r}
+# Quadratic model
+fit_quad <- agri_regression(
+  data = agri_dose,
+  response = "yield",
+  x = "dose",
+  model = "quadratic"
+)
+
+# Summary with parameters and agronomic targets
+print(fit_quad)
+```
+
+### 2.3 Compare Models
+
+```{r}
+# Also fit a linear-plateau model
+fit_lp <- agri_regression(
+  data = agri_dose,
+  response = "yield",
+  x = "dose",
+  model = "linear_plateau"
+)
+
+# Compare goodness of fit
+# For nls models, check summary structure
+cat("Quadratic - fit summary:\n")
+s_q <- summary(fit_quad$fit)
+cat("  R²:", round(s_q$r.squared %||% NA, 4), "\n")
+cat("  RMSE:", round(s_q$sigma %||% NA, 4), "\n")
+
+cat("\nLinear-Plateau - summary:\n")
+s_lp <- summary(fit_lp$fit)
+cat("  Parameters:\n")
+print(coef(s_lp))
+
+# Show quadratic model parameters
+cat("\nQuadratic parameters:\n")
+print(coef(fit_quad$fit))
+```
+
+### 2.4 Regression Plot
+
+```{r}
+#| fig-cap: "Quadratic regression curve"
+# Regression plot with ggplot2
+newdata <- data.frame(dose = seq(min(agri_dose$dose), max(agri_dose$dose), length.out = 100))
+pred <- predict(fit_quad$fit, newdata = newdata, se.fit = TRUE)
+newdata$yield_pred <- pred$fit
+newdata$yield_se <- pred$se.fit
+
+ggplot(agri_dose, aes(x = dose, y = yield)) +
+  geom_point() +
+  geom_line(data = newdata, aes(x = dose, y = yield_pred), color = "blue") +
+  geom_ribbon(data = newdata, aes(x = dose, ymin = yield_pred - 1.96*yield_se,
+                                   ymax = yield_pred + 1.96*yield_se),
+              inherit.aes = FALSE, alpha = 0.2) +
+  labs(x = "Dose (kg/ha)", y = "Yield (t/ha)",
+       title = "Quadratic Dose-Response Regression") +
+  theme_minimal()
+```
+
+### Lesson
+
+> Variables such as dose, time, or rate remain quantitative by default.
+> Do not silently convert them to factors: this loses information and
+> statistical power.
+
+## Workflow 3: Comparing Statistical Engines {.unnumbered}
+
+### Domain Question
+
+> For soil cover proportion data, which statistical engine produces the
+> best fit? Betareg, GAMLSS, or glmmTMB?
+
+### 3.1 Prepare the Data
+
+```{r}
+data("agri_cover", package = "agriGLMflow")
+head(agri_cover)
+
+# Check proportion limits
+range(agri_cover$cover)
+```
+
+### 3.2 Fit with Multiple Engines
+
+```{r}
+# Betareg
+fit_br <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "extended_beta",
+             engine = "betareg"),
+  error = function(e) NULL
+)
+
+# glmmTMB beta
+fit_tm <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "beta",
+             engine = "glmmTMB"),
+  error = function(e) NULL
+)
+
+# GAMLSS beta
+fit_ga <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "BEINF",
+             engine = "gamlss"),
+  error = function(e) NULL
+)
+
+# Check which fits were successful
+cat("betareg:", !is.null(fit_br), "\n")
+cat("glmmTMB:", !is.null(fit_tm), "\n")
+cat("gamlss:", !is.null(fit_ga), "\n")
+```
+
+### 3.3 Comparative Metrics Table
+
+```{r}
+# Build comparison table
+metrics <- data.frame(
+  Engine = character(),
+  AIC = numeric(),
+  logLik = numeric(),
+  stringsAsFactors = FALSE
+)
+
+if (!is.null(fit_br)) {
+  metrics <- rbind(metrics, data.frame(
+    Engine = "betareg", AIC = AIC(fit_br$engine_fit),
+    logLik = as.numeric(logLik(fit_br$engine_fit))
+  ))
+}
+if (!is.null(fit_tm)) {
+  metrics <- rbind(metrics, data.frame(
+    Engine = "glmmTMB", AIC = AIC(fit_tm$engine_fit),
+    logLik = as.numeric(logLik(fit_tm$engine_fit))
+  ))
+}
+if (!is.null(fit_ga)) {
+  metrics <- rbind(metrics, data.frame(
+    Engine = "gamlss", AIC = AIC(fit_ga$engine_fit),
+    logLik = as.numeric(logLik(fit_ga$engine_fit))
+  ))
+}
+
+metrics <- metrics[order(metrics$AIC), ]
+print(metrics)
+```
+
+### Lesson
+
+> The metrics table is **honest**: it includes all engines tested,
+> even when one stands out. A very different AIC may indicate different
+> parameterization, not necessarily a better fit. Always check the
+> parameterization of each backend before comparing.
+
+## Workflow 4: Diagnostics and Sensitivity {.unnumbered}
+
+### Domain Question
+
+> Is the count model adequate? Is there overdispersion or excess zeros?
+
+### 4.1 Detailed Diagnostics
+
+```{r}
+# Use the fit from Workflow 1
+diag <- agri_diagnose(fit, simulate = TRUE, nsim = 100)
+
+# Overall status
+cat("Overall status:", diag$status, "\n")
+
+# Diagnostic components
+names(diag)
+```
+
+### 4.2 Sensitivity to Alternative Families
+
+```{r}
+# Test alternative families to check robustness
+# Note: agri_sensitivity may fail with certain combinations
+sens <- tryCatch(
+  agri_sensitivity(fit, families = c("poisson", "nbinom2", "nbinom1")),
+  error = function(e) {
+    cat("Sensitivity not available:", conditionMessage(e), "\n")
+    NULL
+  }
+)
+if (!is.null(sens)) print(sens)
+```
+
+### 4.3 Cross-Validation
+
+```{r}
+# 5-fold cross-validation respecting blocks
+cv_result <- agri_cv(fit, v = 5L, unit = "block")
+print(cv_result)
+```
+
+### Lesson
+
+> An acceptable diagnostic does not guarantee the best model; it ensures
+> that the model has no evident problems. Always compare with alternative
+> families using prediction metrics.
+
+## Closing {.unnumbered}
+
+### Complete Package Workflow
+
+```{mermaid}
+graph TD
+    A[Raw data] --> B[agri_design]
+    B --> C[agri_response]
+    C --> D[agri_family_scan]
+    D --> E[agri_model]
+    E --> F[agri_diagnose]
+    F --> G[agri_means / agri_contrasts]
+    G --> H[agri_plot_*]
+    E --> I[agri_regression]
+    I --> J[agri_compare_curves]
+    F --> K[agri_cv / agri_bootstrap]
+    E --> L[agri_report]
+```
+
+### Best Practice Rules
+
+1. **Declare the design before fitting**: the experimental unit
+   determines the variance structure.
+2. **Do not p-hack**: model selection should be based on predefined
+   criteria (AIC, BIC, cross-validation), not on significance.
+3. **Always check residuals**: convergence is not sufficient.
+4. **Record decisions**: use `agri_audit()` to track what was done
+   and why.
+5. **Use fixed seeds**: reproducibility is essential for science.
+
+### Exercises
+
+<details>
+<summary>Exercise 1 (Basic Level)</summary>
+
+Fit a Poisson model to the `agri_disease` data using `agri_glm()`.
+Compare the results with a direct call to `glm()`.
+
+```{r}
+# Your answer here
+```
+
+</details>
+
+<details>
+<summary>Exercise 2 (Intermediate Level)</summary>
+
+For the `agri_germination` data, fit a binomial model with `agri_glm()`
+and another with `agri_model(family = "auto")`. Compare the estimates.
+
+```{r}
+# Your answer here
+```
+
+</details>
+
+<details>
+<summary>Exercise 3 (Advanced Level)</summary>
+
+Use `agri_workflow()` to analyze the `agri_splitplot` data as a
+split-plot design. Verify that the package correctly detected the
+main-plot structure.
+
+```{r}
+# Your answer here
+```
+
+</details>
+
+### How to Cite
+
+```{r}
+citation("agriGLMflow")
+```
+
+```{r}
+packageVersion("agriGLMflow")
+R.version.string
+```
+
+```{r}
+sessionInfo()
+```

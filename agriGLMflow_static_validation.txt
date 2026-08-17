@@ -1,0 +1,23 @@
+agriGLMflow 0.1.0 source snapshot static validation
+UTC timestamp: 2026-08-12T22:43:15Z
+
+R-like files checked: 68
+Exports checked: 66
+Functions defined in R/: 146
+Rd aliases: 83
+Datasets: 18
+Vignettes: 22
+
+WARNINGS:
+ - DESCRIPTION still requires the real CRAN maintainer email before submission.
+
+STATIC CHECK: PASS
+
+Total files: 119
+Exports: 66
+Family registry entries: 81
+Tests: 18
+Datasets: 18
+Vignettes: 22
+Frozen scenarios: 188
+Frozen seeds: 12000

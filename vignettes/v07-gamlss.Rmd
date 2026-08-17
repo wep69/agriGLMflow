@@ -1,0 +1,64 @@
+---
+title: "GAMLSS and distributional regression"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{GAMLSS and distributional regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Beyond the mean
+
+GAMLSS allows distribution parameters to depend on explanatory variables. A generic model can be written
+
+$$g_\mu(\mu_i)=\eta_{\mu i},\quad g_\sigma(\sigma_i)=\eta_{\sigma i},\quad g_\nu(\nu_i)=\eta_{\nu i},\quad g_\tau(\tau_i)=\eta_{\tau i}.$$
+
+```{r}
+data(agri_distreg)
+m <- agri_gamlss(data=agri_distreg, formula=biomass~dose+treatment,
+  family="gamlss_GA", engine_args=list(sigma.formula=~dose))
+agri_diagnose(m)
+```
+
+GAMLSS is not treated as an automatic replacement for a complex likelihood-based GLMM. When a split-plot or other hierarchical design requires random experimental-unit effects, the workflow first protects that structure.
+
+# Expert GAMLSS families
+
+Additional exported GAMLSS family constructors can be used explicitly through
+`agri_family_spec()`. They are kept outside automatic screening until their
+parameterization, diagnostics and post-hoc interpretation have dedicated tests.
+
+```{r}
+expert <- agri_family_spec("gamlss", "TF", response_type="continuous")
+# agri_model(data=d, formula=y~x, family=expert, engine="gamlss")
+```
+
+# Validated and advanced GAMLSS registry
+
+The registry separates automatic recommendations from advanced distributional
+families. In addition to the conventional Gamma, lognormal and beta paths,
+Tier 2 contains candidates such as Student-t, power-exponential, SHASH/JSU,
+generalized Gamma, inverse Gaussian, Weibull, BCCG, BCPE, BCT, NBI/NBII,
+Poisson-inverse Gaussian, generalized/double Poisson, Sichel, beta-negative
+binomial, beta-binomial, simplex and zero-adjusted/inflated families when their
+support matches the response.
+
+```{r}
+all_fam <- agri_families()
+subset(all_fam, engine == "gamlss" & tier <= 2,
+       select = c(id, response_type, multiparameter, tier))
+
+# Explicitly allow advanced candidates in a family scan
+# agri_family_scan(data=d, response="y", design=des, tier=2, fit=TRUE)
+```
+
+Tier 2 is intentionally opt-in. A family is not promoted merely because its
+constructor exists in `gamlss.dist`; it must also have a defined support,
+parameter interpretation, diagnostic route and reproducible tests in
+`agriGLMflow`.

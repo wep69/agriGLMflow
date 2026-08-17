@@ -1,0 +1,39 @@
+---
+title: "Ordinal responses"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Ordinal responses}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Ordered outcomes
+
+Injury, disease severity and phenological stages are often ordinal rather than continuous. `agriGLMflow` supports cumulative mixed models through `ordinal` and, for fixed-effects designs, multiple VGAM formulations: cumulative, partial/non-proportional, adjacent-category, continuation-ratio and stopping-ratio models.
+
+```{r}
+data(agri_ordstage)
+m1 <- agri_ordinal(agri_ordstage, stage~treatment, model="cumulative")
+m2 <- agri_ordinal(agri_ordstage, stage~treatment, model="adjacent")
+```
+
+The model should reflect the scientific process. A continuation-ratio model can be meaningful when categories represent sequential progression, whereas an adjacent-category model compares neighboring stages.
+
+
+## Parallelism and partial proportional odds
+
+A proportional-odds VGAM cumulative model uses `parallel = TRUE`. Use `agri_check_parallel()` to compare it with the nested non-parallel model by likelihood ratio, while inspecting sparse categories and convergence. Partial proportional-odds models require an explicit VGAM constraint formula.
+
+```{r, eval=FALSE}
+fit_po <- agri_ordinal(agri_ordstage, stage ~ treatment, model="cumulative", parallel=TRUE)
+agri_check_parallel(fit_po)
+fit_ppo <- agri_ordinal(agri_ordstage, stage ~ treatment + dose,
+                        model="partial_proportional",
+                        parallel = TRUE ~ -1 + treatment)
+```

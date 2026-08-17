@@ -1,0 +1,350 @@
+---
+title: "State of the art, ecosystem comparison, and rationale for agriGLMflow"
+output: rmarkdown::html_vignette
+bibliography: references.bib
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{State of the art and ecosystem comparison}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Purpose and scope
+
+This vignette documents the scientific and software rationale for `agriGLMflow`.
+It is deliberately broader than a feature list. Its purpose is to establish what is
+already well solved in the R ecosystem, where the workflow remains fragmented for
+agricultural experiments, and which design decisions in `agriGLMflow` follow from
+that gap.
+
+The review snapshot is dated **12 August 2026**. The comparison covers major
+agriculture-oriented packages, general GLM/GLMM engines, distributional and vector
+regression frameworks, and widely used post-model inference and diagnostic tools.
+It is a scoped ecosystem review, not a claim that every R package ever published was
+screened. Accordingly, the defensible novelty statement is that **within the reviewed
+set, no single package was identified that simultaneously provides the complete
+combination of design declaration, response characterization, admissible-family
+screening, design-compatible engine routing, quantitative-treatment regression,
+post-model inference, diagnostics, graphics, reporting, and an auditable decision
+trail for agricultural experiments**.
+
+Scientific-reference metadata used in this vignette were checked against two sources.
+The verification record is distributed with the package in
+`inst/METADATA_VERIFICATION.md` and `inst/metadata/reference_verification.csv`.
+
+# Review strategy
+
+The comparison was assembled from three evidence layers: (1) current CRAN package
+indices, manuals, vignettes, and official citation records for software capabilities and
+version-dependent restrictions; (2) peer-reviewed software and methodological papers for
+the statistical frameworks; and (3) recent comparative or review literature where
+available. Packages were selected to represent the principal roles that an agronomic
+workflow must connect: agricultural experimental design, GLM/GLMM fitting, distributional
+and vector regression, smooth and nonlinear modelling, Bayesian multilevel modelling,
+post-model inference, and diagnostics.
+
+This is therefore a **representative, reproducible state-of-the-art comparison**, not an
+exhaustive census of CRAN. The comparison date is essential because package capabilities
+and versions change. The exact software snapshot is recorded in
+`inst/METADATA_VERIFICATION.md`.
+
+# Why generalized modelling requires an agronomic workflow
+
+Agricultural responses frequently violate the assumptions of a Gaussian, independent,
+constant-variance response. Examples include insect and disease counts, germination
+successes, bounded proportions, ordinal injury scores, positive skewed physiological
+measurements, repeated observations from the same plot, and experiments repeated over
+environments. Madden and Ojiambo [-@MaddenOjiambo2024] emphasize that moving from LMMs
+to GLMMs in plant sciences introduces substantive choices involving conditional versus
+marginal interpretation, overdispersion, fitting method, link function, and the response
+distribution. These decisions are not cosmetic because they can alter the estimand,
+standard errors, and biological interpretation.
+
+At the same time, quantitative treatments should often remain quantitative. Nonlinear
+relationships are common in crop and soil processes, and nonlinear regression requires
+more than choosing the curve with the largest coefficient of determination
+[@ArchontoulisMiguez2015]. This motivates treating design structure, response distribution,
+and regression shape as connected parts of the same analysis rather than as separate
+software tasks.
+
+# The ecosystem is strong but specialized
+
+The rationale for `agriGLMflow` is **not** that R lacks high-quality modelling tools.
+The opposite is true. The ecosystem contains mature packages that solve individual
+parts of the problem exceptionally well.
+
+## Agriculture-oriented packages
+
+`AgroR` was developed specifically to facilitate agricultural experiment analysis and
+provides experimental-design analyses, assumption checks, multiple comparisons,
+graphical outputs, and a Shiny interface [@ShimizuEtAl2025]. It therefore occupies an
+important role in accessible agricultural statistics. Its purpose, however, is different
+from building a multi-engine distributional modelling layer spanning GLMM, GAMLSS,
+VGAM, response-family screening, and a unified audit trail.
+
+`AgroReg` focuses on linear and nonlinear regression for agricultural applications.
+This is complementary to `agriGLMflow`: the latter retains quantitative treatments as
+quantitative by default but connects curve modelling to non-Gaussian likelihoods,
+experimental-unit structure, uncertainty, diagnostics, and downstream inference.
+The need for careful nonlinear modelling in agriculture is well established
+[@ArchontoulisMiguez2015].
+
+Long-established agricultural-design packages are also central to the ecosystem.
+`agricolae` provides extensive planning and analysis functionality for agricultural and
+plant-breeding designs, including complete blocks, Latin squares, lattice and alpha
+designs, split-plot and strip-plot layouts, multiple-comparison procedures, and selected
+multi-location tools. `ExpDes` and `ExpDes.pt` provide compact workflows for CRD/DIC,
+RBD/DBC, Latin squares, factorials, split plots, multiple comparisons, residual analyses,
+and polynomial regression for quantitative treatments. These packages remain valuable
+for classical design-based analyses. `agriGLMflow` does not attempt to replace them.
+Instead, it extends the design-first idea to responses and dependence structures that
+require generalized, mixed, vector, or distributional models.
+
+## Mixed-model engines
+
+`lme4` is a foundational implementation for linear and generalized linear mixed models
+and provides a well-established formula representation for fixed and random effects
+[@BatesEtAl2015]. It is used as a reference engine in `agriGLMflow` where its supported
+model class is appropriate.
+
+`glmmTMB` greatly expands the GLMM family space and supports, among other extensions,
+zero-inflated and flexible count models [@BrooksEtAl2017]. It is therefore the principal
+frequentist GLMM backend in `agriGLMflow` when a design requires random effects and the
+requested family is supported.
+
+`GLMMadaptive` provides likelihood-based GLMM fitting using adaptive Gaussian quadrature.
+Its current implementation permits multiple random-effect terms within **one grouping
+factor**, but only one grouping factor. This makes it valuable for compatible grouped
+models but prevents using it as a universal replacement for models that require several
+experimental-unit grouping factors. `agriGLMflow` encodes this as a routing constraint,
+not as a warning that the user must remember manually.
+
+## Distributional regression and GAMLSS
+
+GAMLSS generalized regression beyond the conditional mean by allowing location, scale,
+and shape parameters to depend on explanatory variables [@RigbyStasinopoulos2005;
+@StasinopoulosEtAl2018]. A recent state-of-the-art primer further frames GAMLSS as a
+central distributional-regression approach for modelling variability, quantiles, skewness,
+tail behaviour, and exceedance probabilities [@MerderEtAl2026]. This is especially useful
+when agricultural treatments alter not only the expected response but also its variability
+or distributional shape.
+
+`agriGLMflow` therefore treats GAMLSS as a first-class distributional backend, but does
+not pretend that every GAMLSS random-effect construction is interchangeable with every
+likelihood-based GLMM. The experimental design remains the first routing constraint.
+
+## VGAM and vector generalized modelling
+
+The VGAM framework extends generalized regression to vector generalized linear and
+additive models and has long supported categorical structures such as multinomial and
+ordinal models [@Yee2010; @Yee2015]. Current VGAM documentation reports more than 100
+models/distributions while also stating a critical limitation: the current implementation
+is fixed-effects only. This makes VGAM particularly valuable for multinomial, flexible
+ordinal, Dirichlet, Dirichlet-multinomial, simplex, censored, extreme-value, and other
+specialized fixed-effects responses, while making it inappropriate for an agronomic design
+that requires random block, plot, environment, or subject effects.
+
+`agriGLMflow` uses this limitation constructively: VGAM is available when scientifically
+and structurally compatible and is hard-blocked or rerouted when the declared design
+requires random effects.
+
+A recent systematic review of ordinal-regression software identified 48 CRAN packages
+and described VGAM as the most versatile package in terms of the ordinal model/link
+coverage evaluated [@PujolRigolEtAl2025]. The publisher subsequently issued a
+[correction](https://doi.org/10.1002/wics.70060) to Table 4 concerning entries for GLMcat
+and `brms`; this reinforces why `agriGLMflow` dates its ecosystem comparisons rather
+than treating software capabilities as permanent facts.
+
+## Specialized response models
+
+`betareg` established a dedicated regression framework for beta-distributed responses,
+including modelling of the precision parameter [@CribariNetoZeileis2010]. Modern versions
+also provide extensions for responses that may reach the boundaries of the unit interval.
+The package is retained as a specialized engine rather than reproducing its estimator.
+
+`ordinal` provides cumulative-link and cumulative-link mixed models and remains an
+important backend when ordered responses require random effects. VGAM complements it with
+additional fixed-effects ordinal formulations such as adjacent-category,
+continuation-ratio, stopping-ratio, and partial proportional-odds structures.
+
+# Complementary modelling frameworks beyond the frequentist core
+
+The ecosystem also contains broad frameworks that overlap important parts of the
+`agriGLMflow` roadmap without eliminating the need for agronomic orchestration. `brms`
+provides Bayesian multilevel, nonlinear, zero-inflated, hurdle, ordinal, censored,
+multivariate, and distributional models through Stan [@Buerkner2017]. It is consequently
+a major advanced backend candidate, but Bayesian prior specification, posterior
+diagnostics, computational cost, and posterior-scale inference form a workflow distinct
+from the frequentist CRAN 1.0 core. `agriGLMflow` therefore treats Bayesian modelling as
+an explicit extension rather than silently mixing inferential paradigms.
+
+`mgcv` is a leading framework for generalized additive and generalized additive mixed
+models, with smoothness estimation and distributions extending well beyond elementary
+Gaussian regression [@Wood2025]. It is complementary to the package's quantitative
+treatment module when the scientific objective is a flexible smooth relationship rather
+than a mechanistic or low-dimensional parametric dose-response curve.
+
+Diagnostics are similarly specialized. `DHARMa` supplies simulation-based residual
+diagnostics for many hierarchical and generalized models, whereas `hnp` provides
+half-normal plots with simulation envelopes for generalized and overdispersed models
+[@MoralEtAl2017]. These tools strengthen model checking but do not themselves encode the
+agricultural experimental unit or choose a design-compatible probability-model engine.
+
+# Post-model inference and diagnostics are another software layer
+
+Model fitting is only part of an agricultural analysis. Estimated marginal means,
+contrasts, treatment-versus-control comparisons, slopes, response-scale predictions, and
+diagnostic checks typically require additional packages.
+
+The methodology underlying estimated marginal means and contrasts is documented by
+Lenth [-@Lenth2016], and the modern `emmeans` package provides a broad interface for EMMs,
+contrasts, trends, and comparisons of slopes. `agriGLMflow` uses `emmeans` where the fitted
+model class has validated native support rather than reimplementing that mathematics.
+
+`marginaleffects` provides a general framework for translating fitted models into
+predictions, comparisons, slopes, ratios, and other quantities of interest across a wide
+range of model classes [@ArelBundockEtAl2024]. `agriGLMflow` uses this layer selectively
+when it improves interpretation while retaining agronomic design semantics.
+
+`performance` provides a consistent toolbox for model-quality assessment and checks such
+as overdispersion, zero inflation, singularity, and related diagnostics across many model
+classes [@LudeckeEtAl2021]. Simulation-based diagnostics such as those provided by DHARMa
+are additionally useful for many GLM/GLMM classes. These packages address model checking;
+they do not define the agricultural experimental unit or decide which engine can validly
+represent a split-plot or multi-environment structure.
+
+# Comparative capability matrix
+
+The following matrix describes the **primary scope** of the reviewed packages rather than
+ranking their statistical quality. "Primary" means that the capability is central to the
+package; "available" means it is supported but is not the package's defining role;
+"specialized" indicates an intentionally narrower scope; and "orchestrated" denotes a
+capability that `agriGLMflow` coordinates through validated backends.
+
+| Package/framework | Primary role | Agricultural design semantics | Mixed/random effects | Broad or specialized distribution families | Multiparameter distributional modelling | Multinomial/compositional | Quantitative nonlinear regression | Post-model inference | Unified audit/routing |
+|---|---|---|---|---|---|---|---|---|---|
+| **agricolae** | Agricultural design/planning and analysis | **Primary** | Selected classical/mixed-analysis tools | Classical agricultural procedures | Not primary | Not primary | Selected regression tools | Multiple comparisons | No |
+| **ExpDes / ExpDes.pt** | Classical experimental-design analysis | **Primary** | Classical design strata | Mostly ANOVA-oriented | Not primary | No | Polynomial/nonlinear utilities | Multiple comparisons | No |
+| **AgroR** | Agricultural experiment analysis | **Primary** | Available for selected workflows | Selected GLM/mixed workflows | Not primary | Not primary | Available for agricultural analyses | Multiple comparisons | Not its primary purpose |
+| **AgroReg** | Agricultural regression | Limited | Not primary | Regression-focused | Not primary | Not primary | **Primary** | Regression summaries | No |
+| **lme4** | LMM/GLMM engine | Formula-based, not agronomy-specific | **Primary** | Conventional mixed-model families | No | No | Limited | Via other packages | No |
+| **glmmTMB** | Extended GLMM engine | Formula-based, not agronomy-specific | **Primary** | **Primary, broad GLMM families** | Dispersion/ZI components available | Limited | Covariate regression within GLMM | Via other packages | No |
+| **GLMMadaptive** | Adaptive-quadrature GLMM | Not agronomy-specific | **Specialized: one grouping factor** | Selected GLMM families | Selected extensions | Selected ordinal/ZI extensions | Covariate regression | Package/other tools | No |
+| **GAMLSS** | Distributional regression | Not agronomy-specific | Specialized random-effect mechanisms | **Very broad** | **Primary** | Selected families | Smooth/nonlinear terms | GAMLSS ecosystem | No |
+| **VGAM** | VGLM/VGAM | Not agronomy-specific | **No in current VGAM** | **Very broad fixed-effect families** | **Primary for many VGLMs** | **Primary strength** | VGAM smoothers | Requires class-specific handling | No |
+| **betareg** | Beta/extended beta regression | No | No general mixed-effects engine | **Specialized** | Mean/precision structures | No | Covariate regression | Via supported tools | No |
+| **ordinal** | Ordinal CLM/CLMM | No | **Available in CLMM** | Ordinal only | Threshold/scale structures | Ordinal, not nominal composition | Covariate regression | Via supported tools | No |
+| **brms** | Bayesian multilevel/distributional modelling | Formula-based, not agronomy-specific | **Primary** | **Broad Bayesian family support** | **Primary** | Multivariate/ordinal supported | Nonlinear/smooth terms | Posterior inference | No agronomic router |
+| **mgcv** | GAM/GAMM and smooth regression | Formula-based, not agronomy-specific | Available through GAMM/random-effect smooths | Broad GAM families | Selected location-scale/general families | Selected multivariate/general families | **Primary smooth modelling** | Model-specific | No agronomic router |
+| **DHARMa** | Simulation-based residual diagnostics | Consumes fitted model | Model dependent | Not a fitting engine | Not a fitting engine | Model dependent | No | Diagnostic layer | No |
+| **hnp** | Half-normal simulation envelopes | Consumes fitted model | Model dependent | Diagnostic support across fitted classes | Not a fitting engine | Model dependent | No | Diagnostic layer | No |
+| **emmeans** | EMMs, contrasts, trends | Consumes fitted model | Not a fitting engine | Not a fitting engine | Not a fitting engine | Class dependent | Trends/slopes post fit | **Primary** | No |
+| **marginaleffects** | Predictions, comparisons, slopes | Consumes fitted model | Model dependent | Model dependent | Model dependent | Model dependent | Post-fit slopes/effects | **Primary** | No |
+| **performance** | Model assessment/diagnostics | Consumes fitted model | Model dependent | Model dependent | Model dependent | Model dependent | No | Diagnostic layer | No |
+| **agriGLMflow** | Agronomic modelling orchestrator | **Primary** | **Routes to compatible engines** | **Registry across engines** | **Routes GAMLSS/VGAM/other engines** | **Routes VGAM/ordinal-compatible paths** | **Integrated** | **Integrated** | **Primary** |
+
+This table is intentionally asymmetric. Mature specialist packages should remain
+specialists. The proposed contribution of `agriGLMflow` is to preserve their strengths
+while supplying the design-aware connective tissue between them.
+
+# The gap addressed by agriGLMflow
+
+The reviewed ecosystem suggests five distinct layers:
+
+1. **Experimental design.** Agricultural software is strongest when the user specifies
+   DIC/CRD, RCBD, factorial, split-plot, repeated, or related structures explicitly.
+2. **Probability model.** General statistical engines provide deeper family and dependence
+   support than a single agriculture-oriented package can reasonably reimplement.
+3. **Distributional/vector extensions.** GAMLSS and VGAM cover different but complementary
+   model spaces.
+4. **Post-model inference.** EMMs, contrasts, predictions, and marginal effects are handled
+   by dedicated infrastructure.
+5. **Diagnostics and validation.** Model checking is itself a multi-package task.
+
+The practical gap is therefore not the absence of algorithms. It is the need to move
+reliably between these layers **without losing the experimental unit, response support,
+interpretation scale, or decision history**.
+
+`agriGLMflow` addresses that gap through the following sequence:
+
+```text
+experimental design
+        -> response characterization
+        -> scientifically admissible family set
+        -> design-compatible engine routing
+        -> convergence and diagnostic gates
+        -> model comparison within the admissible set
+        -> post-model inference / quantitative regression
+        -> prediction and graphics
+        -> reproducible report + audit trail
+```
+
+# Why agriGLMflow is not simply a wrapper
+
+A thin wrapper merely renames another package's function. The intended scientific
+contribution here is different.
+
+## 1. The design can veto the engine
+
+If a split-plot requires whole-plot and subplot experimental units, a backend that cannot
+represent both is rejected. The design is not simplified to make software execution easier.
+The same principle applies to split-split, strip-plot, repeated-measures, and
+multi-environment structures.
+
+## 2. Family screening is constrained by support and diagnostics
+
+The candidate set begins with the mathematical support and scientific process of the
+response. A model that has a smaller AIC but fails convergence, residual, dispersion, or
+structural checks does not automatically become the recommended model.
+
+## 3. Engines are capabilities, not identities
+
+`glmmTMB`, GAMLSS, VGAM, `ordinal`, `betareg`, `brglm2`, `lme4`, and
+`GLMMadaptive` solve different statistical problems. The router records why an engine was
+selected and why alternatives were rejected.
+
+## 4. Agronomic quantitative regression remains connected to the likelihood model
+
+Dose, rate, time, and density variables remain numeric by default. Linear, polynomial,
+plateau, mechanistic, nonlinear, or smooth relationships are considered without discarding
+the non-Gaussian response or experimental-unit structure.
+
+## 5. The audit trail is part of the statistical result
+
+`agri_audit()` records design requirements, family candidates, engine decisions,
+convergence/diagnostic outcomes, inferential scale, and post-model choices. This is intended
+to make automated assistance inspectable rather than opaque.
+
+# What agriGLMflow deliberately does not claim
+
+The package does **not** claim that one automatic algorithm can identify the true
+probability distribution in every experiment. It does not claim that the lowest AIC is
+scientific proof. It does not replace the statistical engines it calls, and it does not
+make specialist packages obsolete.
+
+Its stronger and more defensible claim is that an agricultural workflow can make the
+constraints linking **design, distribution, dependence, engine capability, diagnostics,
+and interpretation explicit and reproducible**.
+
+The current development snapshot still requires runtime validation with R and all optional
+backends before a CRAN release. The planned simulation programme therefore evaluates
+parameter recovery, interval coverage, type-I error, power, convergence, family-set
+recovery, diagnostic sensitivity/specificity, and predictive calibration rather than
+validating the workflow only through software examples.
+
+# Reproducible metadata policy
+
+Scientific metadata in this vignette are stored in `vignettes/references.bib`. Each DOI is
+also listed in `inst/metadata/reference_verification.csv`, together with two sources used to
+check author, title, year, outlet, volume/issue/pages or article number, and DOI. The human-
+readable verification notes are in `inst/METADATA_VERIFICATION.md`.
+
+Package versions are inherently time-dependent. Version numbers in the verification notes
+therefore describe the **12 August 2026 snapshot** and should be refreshed before a journal
+submission or CRAN release.
+
+# References

@@ -1,0 +1,78 @@
+Package: agriGLMflow
+Type: Package
+Title: Unified Generalized, Mixed and Distributional Modelling Workflows for Agricultural Experiments
+Version: 0.1.0
+Authors@R: c(
+    person(
+      given = c("Walter", "Esfrain"),
+      family = "Pereira",
+      email = "walterufpb@yahoo.com.br",
+      role = c("aut", "cre", "cph"),
+      comment = c(ORCID = "0000-0003-1085-0191")
+    ),
+    person(
+      given = c("Magali", "Haidee"),
+      family = "Pereira Martinez",
+      role = "aut",
+      comment = c(ORCID = "0009-0009-5419-959X")
+    )
+  )
+Description: Design-aware workflows for generalized linear models, generalized
+    linear mixed models, distributional regression, generalized additive models
+    for location, scale and shape, vector generalized linear and additive models,
+    ordinal and compositional responses, quantitative-treatment regression,
+    diagnostics, post-hoc inference, prediction, visualization, simulation and
+    reproducible reporting in agricultural experiments. The package preserves
+    experimental-unit structure, routes models to compatible statistical engines,
+    and records automated decisions in an auditable workflow rather than selecting
+    models solely by significance tests or information criteria.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports:
+    stats,
+    utils,
+    rlang
+Suggests:
+    cli,
+    ggplot2,
+    glmmTMB,
+    lme4,
+    GLMMadaptive,
+    gamlss,
+    gamlss.dist,
+    gamlss.inf,
+    VGAM,
+    ordinal,
+    betareg,
+    brglm2,
+    emmeans,
+    DHARMa,
+    performance,
+    marginaleffects,
+    ggeffects,
+    mgcv,
+    MASS,
+    minpack.lm,
+    segmented,
+    drc,
+    broom,
+    broom.mixed,
+    parameters,
+    modelsummary,
+    multcomp,
+    multcompView,
+    spaMM,
+    agridat,
+    patchwork,
+    ggdist,
+    rmarkdown,
+    knitr,
+    quarto,
+    testthat (>= 3.0.0),
+    vdiffr,
+    covr,
+    withr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+RoxygenNote: 7.3.2

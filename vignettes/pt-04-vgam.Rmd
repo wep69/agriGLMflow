@@ -1,0 +1,21 @@
+---
+title: "VGAM no agriGLMflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{VGAM no agriGLMflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Ampliação metodológica
+
+VGAM acrescenta multinomial, modelos ordinais cumulative/adjacent/continuation/stopping, Dirichlet, Dirichlet-multinomial, simplex e famílias especializadas. Como VGAM implementa atualmente efeitos fixos, o `agriGLMflow` bloqueia seu uso quando o delineamento exige blocos ou unidades experimentais aleatórias.
+
+```{r}
+data(agri_multiclass)
+m <- agri_multinomial(agri_multiclass,status~treatment)
+```

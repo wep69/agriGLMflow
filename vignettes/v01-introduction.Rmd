@@ -1,0 +1,44 @@
+---
+title: "Introduction to agriGLMflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to agriGLMflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Why this package?
+
+Agricultural experiments routinely produce counts, proportions, ordered scores, positive skewed measurements and repeated or multi-environment observations. A Gaussian ANOVA is therefore only one member of a much larger modelling family. `agriGLMflow` provides a common interface for GLM, GLMM, distributional regression, GAMLSS, VGAM, ordinal and compositional models while preserving the experimental design.
+
+For a GLM,
+
+$$g(\mu_i)=\mathbf{x}_i^T\boldsymbol{\beta}.$$
+
+For a GLMM,
+
+$$g(\mu_{ij})=\mathbf{x}_{ij}^T\boldsymbol{\beta}+\mathbf{z}_{ij}^T\mathbf{b}_j,$$
+
+with $\mathbf{b}_j\sim N(0,G)$. The package stores the design, response characterization, family registry entry, engine, diagnostics and audit trail in a single workflow.
+
+# First complete example
+
+```{r}
+library(agriGLMflow)
+data(agri_insects)
+des <- agri_design(agri_insects, "rcbd", treatment="treatment", block="block")
+resp <- agri_response(agri_insects, "insects")
+scan <- agri_family_scan(agri_insects, resp, des, fit=FALSE)
+fit <- agri_model(agri_insects, response=resp, design=des, family="nbinom2")
+agri_diagnose(fit)
+agri_means(fit, "treatment")
+agri_audit(fit)
+```
+
+The audit trail is part of the statistical result. It records why an engine was accepted and whether required experimental-unit terms were preserved.

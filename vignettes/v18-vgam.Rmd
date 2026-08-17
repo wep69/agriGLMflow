@@ -1,0 +1,71 @@
+---
+title: "Vector, multinomial and compositional models with VGAM"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{VGAM integration}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Why VGAM is included
+
+VGAM extends the package beyond ordinary scalar-response GLMs. It provides multinomial, cumulative and alternative ordinal models, Dirichlet and Dirichlet-multinomial responses, simplex regression, specialized count distributions, censoring and extreme-value families. Current VGAM releases implement fixed-effects models only, so the engine is deliberately blocked for random-effects designs.
+
+# Multinomial
+
+```{r}
+data(agri_multiclass)
+m <- agri_multinomial(agri_multiclass,status~treatment)
+agri_means(m,"treatment",bootstrap=200)
+```
+
+# Composition
+
+```{r}
+data(agri_composition)
+dm <- agri_composition(agri_composition,cbind(root,stem,leaf)~treatment)
+agri_means(dm,"treatment",bootstrap=200)
+```
+
+# Ordinal alternatives
+
+```{r}
+data(agri_ordstage)
+cum <- agri_ordinal(agri_ordstage,stage~treatment,model="cumulative")
+adj <- agri_ordinal(agri_ordstage,stage~treatment,model="adjacent")
+con <- agri_ordinal(agri_ordstage,stage~treatment,model="continuation")
+```
+
+# Capability tiers
+
+Tier 1 families enter the automated candidate registry after dedicated tests. Tier 2 contains advanced or numerically fragile models. Wider VGAM families can be accessed only by explicit expert-level extension until their post-hoc and diagnostic semantics are validated. This prevents the phrase “100+ distributions” from becoming an unvalidated automatic-search space.
+
+# Expert access to additional VGAM families
+
+Families not yet in the validated registry remain accessible without pretending that
+they passed automatic screening:
+
+```{r}
+expert <- agri_family_spec("VGAM", "some_exported_VGAM_family",
+  response_type="expert", posthoc_mode="unsupported")
+# agri_model(data=d, formula=y~x, family=expert, engine="VGAM")
+```
+
+Expert specifications never enter `agri_family_scan()` automatically.
+
+# Dirichlet-multinomial counts
+
+```{r}
+data(agri_multicounts)
+dmc <- agri_composition(
+  agri_multicounts,
+  cbind(healthy,mild,moderate,severe) ~ treatment,
+  family="dirmultinomial"
+)
+```

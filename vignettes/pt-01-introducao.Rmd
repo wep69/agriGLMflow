@@ -1,0 +1,25 @@
+---
+title: "Introdução ao agriGLMflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introdução ao agriGLMflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Finalidade
+
+O pacote organiza análises não gaussianas a partir do delineamento experimental. A família probabilística somente é avaliada depois de identificar tratamentos, blocos, unidades experimentais e dependências.
+
+```{r}
+data(agri_insects)
+d <- agri_design(agri_insects,"rcbd",treatment="treatment",block="block")
+r <- agri_response(agri_insects,"insects")
+agri_family_scan(agri_insects,r,d,fit=FALSE)
+```
+
+A escolha automática não significa decisão sem supervisão. O objeto `agri_audit()` registra cada decisão e a justificativa computacional correspondente.

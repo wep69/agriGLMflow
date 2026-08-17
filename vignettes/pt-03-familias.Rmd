@@ -1,0 +1,18 @@
+---
+title: "Escolha ampliada de famílias"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Escolha ampliada de famílias}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Famílias candidatas
+
+Contagens podem ser avaliadas por Poisson, NB1, NB2, COM-Poisson, generalized Poisson e, quando cientificamente justificável, modelos zero-inflated ou hurdle. Proporções, respostas positivas, ordinais e semicontínuas possuem registries próprios.
+
+O menor AIC não define sozinho o modelo final. Suporte da resposta, convergência, diagnóstico, delineamento, plausibilidade científica e desempenho preditivo são considerados conjuntamente.

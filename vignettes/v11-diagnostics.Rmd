@@ -1,0 +1,25 @@
+---
+title: "Model diagnostics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Model diagnostics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+Diagnostics are organized as gates: convergence first, then dispersion, zeros, residual behavior, random-effect boundaries, influence and residual dependence.
+
+```{r}
+dg <- agri_diagnose(fit, simulate=TRUE, nsim=500)
+dg
+agri_check_dispersion(fit)
+agri_plot(fit,type="diagnostics")
+```
+
+A model with a smaller AIC is not promoted when its fit fails or the experimental design has been violated. Simulation-based DHARMa residuals are used when installed and supported. GAMLSS retains randomized quantile residuals, while VGAM uses native residuals, predicted category probabilities and `simulate.vlm` where implemented.

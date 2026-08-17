@@ -1,0 +1,25 @@
+---
+title: "Positive continuous responses"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Positive continuous responses}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+Strictly positive agronomic measurements may be right-skewed. Candidate models include Gamma, inverse Gaussian, lognormal, Tweedie and selected GAMLSS families.
+
+```{r}
+data(agri_biomass)
+d <- agri_design(agri_biomass,"rcbd",treatment="treatment",block="block")
+r <- agri_response(agri_biomass,"biomass")
+agri_family_candidates(r,d)
+```
+
+The choice is evaluated with residual behavior, uncertainty and predictive adequacy, not skewness alone. A lognormal response model differs conceptually from log-transforming the observed data and fitting an ordinary Gaussian model.

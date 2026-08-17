@@ -1,0 +1,34 @@
+---
+title: "Binomial and proportional responses"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Binomial and proportional responses}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Binomial sampling
+
+When the number of successes out of a known total is observed, use a binomial or beta-binomial model rather than treating the observed percentage as Gaussian.
+
+```{r}
+data(agri_disease)
+d <- agri_design(agri_disease,"rcbd",treatment="treatment",block="block")
+r <- agri_response(agri_disease,"diseased",denominator="total")
+f <- agri_design_formula(d,"cbind(diseased,total-diseased)")
+```
+
+# Continuous proportions
+
+For $0<Y<1$, beta and simplex regression are available. Closed proportions containing exact zeros or ones can use ordered beta, extended-support beta or suitable GAMLSS families.
+
+```{r}
+data(agri_cover)
+agri_response(agri_cover,"cover")
+```

@@ -1,0 +1,47 @@
+---
+title: "Simulation, bootstrap and power"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulation bootstrap and power}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Simulation
+
+```{r}
+sim <- agri_simulate(fit,nsim=100,seed=2026)
+boot <- agri_bootstrap(fit,R=500,type="cluster",unit="block")
+pow <- agri_power(fit,term="treatment",nsim=1000)
+```
+
+Cluster bootstrap resamples experimental units rather than assuming individual observations are exchangeable. Parametric bootstrap simulates from the fitted model. Power is simulation-based and therefore conditional on the fitted parameterization.
+
+For software-validation studies, seeds and scenario definitions should be frozen before final package comparisons.
+
+# Frozen validation battery A-L
+
+The package ships a manuscript-oriented simulation plan under
+`inst/simulation/`. The frozen scenario grid covers count-family selection,
+proportions, positive continuous responses, GAMLSS location-scale models,
+design misspecification, quantitative regression, multiplicity, diagnostic
+sensitivity, ordinal VGAM models, multinomial VGAM models, compositional VGAM
+models and cross-backend parameterization checks.
+
+The validation endpoints include coefficient bias, RMSE, interval coverage,
+type-I error, power, convergence, family-set recovery, predictive log score,
+Brier score, multiclass log-loss, calibration and computational success. The
+scenario definitions and seed registry are versioned so that later package
+changes cannot silently alter the article experiments.
+
+```{r}
+# Installed-package path
+simdir <- system.file("simulation", package = "agriGLMflow")
+read.csv(file.path(simdir, "scenario_grid.csv")) |> head()
+```

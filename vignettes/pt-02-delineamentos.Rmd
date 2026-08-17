@@ -1,0 +1,25 @@
+---
+title: "Delineamentos agronômicos"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Delineamentos agronômicos}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+# Estratos experimentais
+
+DBC, parcelas subdivididas, split-split, strip-plot, medidas repetidas e multiambiente são representados de forma explícita. Em multiambiente, `environment` é obrigatório. Em strip-plot, os dois erros de faixa são preservados.
+
+```{r}
+data(agri_split_split)
+d <- agri_design(agri_split_split,"split_split",block="block",
+ whole_plot_factor="irrigation",subplot_factor="nitrogen",
+ subsubplot_factor="biostimulant",whole_plot_id="whole_plot_id",
+ subplot_id="subplot_id")
+d$random_terms
+```

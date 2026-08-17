@@ -1,0 +1,36 @@
+---
+title: "Count data: Poisson, dispersion and zeros"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Count data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Count workflow
+
+For Poisson data $Var(Y)=E(Y)$. Agricultural counts frequently depart from this restriction. Candidate models include NB1, NB2, COM-Poisson and generalized Poisson, with zero-inflated or hurdle alternatives considered when scientifically plausible.
+
+```{r}
+data(agri_insects)
+d <- agri_design(agri_insects,"rcbd",treatment="treatment",block="block")
+r <- agri_response(agri_insects,"insects")
+r$variance_mean_ratio
+r$zero_excess_ratio
+agri_family_candidates(r,d,tier=1)
+```
+
+Many zeros do not by themselves prove zero inflation. `agriGLMflow` keeps ordinary overdispersed count models in the candidate set and treats structural-zero models as competing scientific mechanisms.
+
+VGAM adds fixed-effects GP-1, GP-2, positive Poisson and zero-altered models. They are automatically removed from a candidate set when the design requires random effects.
+
+
+## Hurdle models
+
+For mixed models, `hurdle_poisson`, `hurdle_nbinom1`, and `hurdle_nbinom2` are represented through a zero process plus a zero-truncated conditional distribution in `glmmTMB`. They are not treated as synonyms for zero-inflated models.

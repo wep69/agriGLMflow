@@ -1,0 +1,24 @@
+---
+title: "Reproducible agricultural workflows"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reproducible agricultural workflows}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+A complete analysis can be expressed as a sequence of explicit objects or with `agri_workflow()`.
+
+```{r}
+w <- agri_workflow(agri_insects,response="insects",treatment="treatment",
+  design="rcbd",design_args=list(block="block"),fit_scan=FALSE)
+agri_audit(w)
+```
+
+The explicit workflow is preferred for confirmatory analyses because each step can be inspected, modified and saved. The one-call workflow is useful for teaching and screening, but it produces the same design, response and audit classes.

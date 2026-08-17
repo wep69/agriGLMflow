@@ -1,0 +1,48 @@
+---
+title: "Hierarchical agricultural designs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Hierarchical agricultural designs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Split-plot
+
+Whole plots and subplots have distinct randomization strata.
+
+```{r}
+data(agri_splitplot)
+d <- agri_design(agri_splitplot, "split_plot", block="block",
+  whole_plot_factor="irrigation", subplot_factor="nitrogen",
+  whole_plot_id="whole_plot_id")
+d$random_terms
+```
+
+# Split-split plot
+
+```{r}
+data(agri_split_split)
+d3 <- agri_design(agri_split_split, "split_split", block="block",
+  whole_plot_factor="irrigation", subplot_factor="nitrogen",
+  subsubplot_factor="biostimulant", whole_plot_id="whole_plot_id",
+  subplot_id="subplot_id")
+d3$random_terms
+```
+
+# Strip-plot
+
+Two strip errors are represented separately. Treating a strip-plot as an ordinary factorial RCBD is explicitly avoided.
+
+```{r}
+data(agri_stripplot)
+ds <- agri_design(agri_stripplot, "strip_plot", block="block",
+  strip_A="tillage", strip_B="cultivar", strip_A_id="strip_A_id",
+  strip_B_id="strip_B_id")
+```

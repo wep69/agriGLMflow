@@ -1,0 +1,33 @@
+---
+title: "Advanced engines and routing"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Advanced engines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+# Engine roles
+
+* `stats`: conventional fixed-effects GLM.
+* `glmmTMB`: primary advanced GLMM engine.
+* `gamlss`: distributional regression.
+* `VGAM`: fixed-effects vector, multinomial, ordinal and compositional models.
+* `lme4`: reference/fallback engine for conventional GLMMs and Gaussian mixed models.
+* `GLMMadaptive`: adaptive Gauss-Hermite quadrature for compatible models with one grouping factor.
+* `ordinal`: cumulative link mixed models.
+* `betareg`: beta and extended-support beta regression.
+* `brglm2`: bias-reduced GLM when separation or small-sample bias is relevant.
+
+```{r}
+agri_engines()
+agri_dependencies()
+```
+
+An explicit engine request never authorizes the package to drop required random effects.

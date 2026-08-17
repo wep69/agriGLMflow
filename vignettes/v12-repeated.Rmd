@@ -1,0 +1,24 @@
+---
+title: "Repeated measurements"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Repeated measurements}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+Repeated observations within a plot are not independent replicates.
+
+```{r}
+data(agri_repeated)
+d <- agri_design(agri_repeated,"repeated",treatment="treatment",
+  subject="plot",time="time",block="block",covariance="independence")
+```
+
+The design stores the repeated-measures unit and time variable. AR(1) structures can be requested for compatible glmmTMB models. Cross-validation must split by plot, not individual observations, to avoid leakage.
