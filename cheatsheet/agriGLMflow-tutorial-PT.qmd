@@ -1,0 +1,505 @@
+---
+title: "Tutorial agriGLMflow: fluxos completos de modelagem para experimentos agronômicos"
+subtitle: "Do planejamento à inferência em português"
+author: "Walter E. Pereira e Magali H. P. Martinez"
+date: today
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: show
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  warning: false
+  message: false
+  eval: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 5,
+  fig.align = "center"
+)
+set.seed(2026)
+# Carregar pacote via devtools (durante desenvolvimento)
+if (requireNamespace("agriGLMflow", quietly = TRUE)) {
+  library(agriGLMflow)
+} else {
+  devtools::load_all(system.file(package = "agriGLMflow"), quiet = TRUE)
+}
+```
+
+## Introdução {.unnumbered}
+
+Este tutorial mostra, passo a passo, como usar o pacote `agriGLMflow` para
+analisar experimentos agronômicos. Cada seção começa por uma **pergunta do
+domínio**, mostra os dados antes das fórmulas, e conduz a análise completa
+até a inferência e os gráficos.
+
+**O que você vai aprender:**
+
+- Como declarar o delineamento experimental corretamente
+- Como identificar a família de distribuição adequada
+- Como ajustar modelos e comparar motores estatísticos
+- Como fazer inferência pós-modelo (médias, contrastes, tendências)
+- Como gerar gráficos de qualidade para publicação
+
+```{r}
+packageVersion("agriGLMflow")
+R.version.string
+```
+
+## Fluxo 1: Fator qualitativo (RCBD com contagens) {.unnumbered}
+
+### Pergunta do domínio
+
+> Um biofertilizante reduz a infestação de insetos em cultura de feijoeiro?
+> O efeito é consistente entre blocos?
+
+### 1.1 Preparar os dados
+
+```{r}
+# Carregar dados de contagem de insetos
+data("agri_insects", package = "agriGLMflow")
+
+# Primeiras linhas
+head(agri_insects, 10)
+
+# Resumo por tratamento
+aggregate(insects ~ treatment, data = agri_insects,
+          FUN = function(x) c(media = mean(x), dp = sd(x), n = length(x)))
+```
+
+### 1.2 Declarar o delineamento
+
+```{r}
+# Criar objeto de delineamento RCBD
+des <- agri_design(
+  data = agri_insects,
+  design = "rcbd",
+  treatment = treatment,
+  block = block
+)
+print(des)
+```
+
+### 1.3 Caracterizar a resposta
+
+```{r}
+# Caracterizar a variável resposta (contagens)
+resp <- agri_response(
+  data = agri_insects,
+  response = "insects"
+)
+print(resp)
+```
+
+### 1.4 Identificar famílias candidatas
+
+```{r}
+# Quais famílias são adequadas para contagens inteiras não negativas?
+cands <- agri_family_candidates(resp, tier = 1L)
+print(cands)
+```
+
+### 1.5 Ajustar o modelo
+
+```{r}
+# Ajustar modelo com família auto (seleção automática)
+# O objeto resp (agri_response) é passado diretamente
+fit <- agri_model(
+  data = agri_insects,
+  response = resp,
+  design = des,
+  family = "auto"
+)
+
+# Resumo do ajuste
+summary(fit$engine_fit)
+```
+
+### 1.6 Diagnóstico
+
+```{r}
+# Diagnóstico completo
+diag <- agri_diagnose(fit)
+print(diag)
+```
+
+### 1.7 Inferência pós-modelo
+
+```{r}
+# Médias marginais por tratamento
+emm <- agri_means(fit, specs = ~ treatment, scale = "response")
+print(emm)
+```
+
+```{r}
+# Contrastes de Tukey (pares de tratamentos)
+# Nota: para modelos glmmTMB Poisson com bloco, os contrastes
+# podem requerer specs explícitos
+contr <- tryCatch(
+  agri_contrasts(fit, specs = ~ treatment, method = "pairwise",
+                 adjust = "tukey", scale = "response"),
+  error = function(e) {
+    cat("Contrastes via emmeans direto:\n")
+    emmeans::emmeans(fit$engine_fit, pairwise ~ treatment, type = "response")
+  }
+)
+print(contr)
+```
+
+### 1.8 Gráficos
+
+```{r}
+#| fig-cap: "Médias marginais por tratamento com intervalos de confiança"
+# Gráfico de médias com ggplot2 diretamente
+library(ggplot2)
+emm_df <- emm$table
+ggplot(emm_df, aes(x = treatment, y = response)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL), width = 0.2) +
+  labs(x = "Tratamento", y = "Média de insetos",
+       title = "Médias marginais por tratamento") +
+  theme_minimal()
+```
+
+```{r}
+#| fig-cap: "Diagnóstico de resíduos"
+# Gráfico de resíduos com ggplot2
+# Para glmmTMB, usar fitted() e residuals()
+resid_df <- data.frame(
+  fitted = fitted(fit$engine_fit),
+  residuals = residuals(fit$engine_fit, type = "pearson")
+)
+ggplot(resid_df, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(x = "Valores ajustados", y = "Resíduos de Pearson",
+       title = "Resíduos vs Valores Ajustados") +
+  theme_minimal()
+```
+
+### Lição
+
+> Para contagens com efeito de bloco, o modelo Poisson com bloco aleatório
+> preserva a unidade experimental e fornece estimativas com validade estatística.
+> Não use `aov()` para contagens: ele assume normalidade.
+
+## Fluxo 2: Fator quantitativo (regressão dose-resposta) {.unnumbered}
+
+### Pergunta do domínio
+
+> Qual a dose ideal de nitrogênio que maximiza a produtividade?
+> A resposta segue uma curva quadrática com platô?
+
+### 2.1 Preparar os dados
+
+```{r}
+data("agri_dose", package = "agriGLMflow")
+head(agri_dose)
+
+# Gráfico exploratório
+plot(yield ~ dose, data = agri_dose,
+     main = "Produtividade vs Dose de Nitrogênio",
+     xlab = "Dose (kg/ha)", ylab = "Produtividade (t/ha)")
+```
+
+### 2.2 Ajustar modelos de regressão
+
+```{r}
+# Modelo quadrático
+fit_quad <- agri_regression(
+  data = agri_dose,
+  response = "yield",
+  x = "dose",
+  model = "quadratic"
+)
+
+# Resumo com parâmetros e alvos agronômicos
+print(fit_quad)
+```
+
+### 2.3 Comparar modelos
+
+```{r}
+# Ajustar também um modelo linear-plateau
+fit_lp <- agri_regression(
+  data = agri_dose,
+  response = "yield",
+  x = "dose",
+  model = "linear_plateau"
+)
+
+# Comparar qualidades de ajuste
+# Para modelos nls, verificar estrutura do summary
+cat("Quadrático - resumo do ajuste:\n")
+s_q <- summary(fit_quad$fit)
+cat("  R²:", round(s_q$r.squared %||% NA, 4), "\n")
+cat("  RMSE:", round(s_q$sigma %||% NA, 4), "\n")
+
+cat("\nLinear-Plateau - resumo:\n")
+s_lp <- summary(fit_lp$fit)
+cat("  Parâmetros:\n")
+print(coef(s_lp))
+
+# Mostrar parâmetros do modelo quadrático
+cat("\nParâmetros quadráticos:\n")
+print(coef(fit_quad$fit))
+```
+
+### 2.4 Gráfico da regressão
+
+```{r}
+#| fig-cap: "Curva de regressão quadrática"
+# Gráfico da regressão com ggplot2
+newdata <- data.frame(dose = seq(min(agri_dose$dose), max(agri_dose$dose), length.out = 100))
+pred <- predict(fit_quad$fit, newdata = newdata, se.fit = TRUE)
+newdata$yield_pred <- pred$fit
+newdata$yield_se <- pred$se.fit
+
+ggplot(agri_dose, aes(x = dose, y = yield)) +
+  geom_point() +
+  geom_line(data = newdata, aes(x = dose, y = yield_pred), color = "blue") +
+  geom_ribbon(data = newdata, aes(x = dose, ymin = yield_pred - 1.96*yield_se,
+                                   ymax = yield_pred + 1.96*yield_se),
+              inherit.aes = FALSE, alpha = 0.2) +
+  labs(x = "Dose (kg/ha)", y = "Produtividade (t/ha)",
+       title = "Regressão quadrática dose-resposta") +
+  theme_minimal()
+```
+
+### Lição
+
+> Variáveis como dose, tempo ou taxa permanecem quantitativas por padrão.
+> Não converta silenciosamente em fator: isso perde informação e poder
+> estatístico.
+
+## Fluxo 3: Comparação de motores estatísticos {.unnumbered}
+
+### Pergunta do domínio
+
+> Para dados de proporção de cobertura do solo, qual motor estatístico
+> produz o melhor ajuste? Betareg, GAMLSS ou glmmTMB?
+
+### 3.1 Preparar os dados
+
+```{r}
+data("agri_cover", package = "agriGLMflow")
+head(agri_cover)
+
+# Verificar limites da proporção
+range(agri_cover$cover)
+```
+
+### 3.2 Ajustar com múltiplos motores
+
+```{r}
+# Betareg
+fit_br <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "extended_beta",
+             engine = "betareg"),
+  error = function(e) NULL
+)
+
+# glmmTMB beta
+fit_tm <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "beta",
+             engine = "glmmTMB"),
+  error = function(e) NULL
+)
+
+# GAMLSS beta
+fit_ga <- tryCatch(
+  agri_model(data = agri_cover, response = "cover",
+             formula = cover ~ treatment, family = "BEINF",
+             engine = "gamlss"),
+  error = function(e) NULL
+)
+
+# Verificar quais ajustes foram bem-sucedidos
+cat("betareg:", !is.null(fit_br), "\n")
+cat("glmmTMB:", !is.null(fit_tm), "\n")
+cat("gamlss:", !is.null(fit_ga), "\n")
+```
+
+### 3.3 Tabela comparativa de métricas
+
+```{r}
+# Construir tabela de comparação
+metricas <- data.frame(
+  Motor = character(),
+  AIC = numeric(),
+  logLik = numeric(),
+  stringsAsFactors = FALSE
+)
+
+if (!is.null(fit_br)) {
+  metricas <- rbind(metricas, data.frame(
+    Motor = "betareg", AIC = AIC(fit_br$engine_fit),
+    logLik = as.numeric(logLik(fit_br$engine_fit))
+  ))
+}
+if (!is.null(fit_tm)) {
+  metricas <- rbind(metricas, data.frame(
+    Motor = "glmmTMB", AIC = AIC(fit_tm$engine_fit),
+    logLik = as.numeric(logLik(fit_tm$engine_fit))
+  ))
+}
+if (!is.null(fit_ga)) {
+  metricas <- rbind(metricas, data.frame(
+    Motor = "gamlss", AIC = AIC(fit_ga$engine_fit),
+    logLik = as.numeric(logLik(fit_ga$engine_fit))
+  ))
+}
+
+metricas <- metricas[order(metricas$AIC), ]
+print(metricas)
+```
+
+### Lição
+
+> A tabela de métricas é **honesta**: inclui todos os motores testados,
+> mesmo quando um destoa. Um AIC muito diferente pode indicar parametrização
+> diferente, não necessariamente melhor ajuste. Sempre verifique a
+> parametrização de cada backend antes de comparar.
+
+## Fluxo 4: Diagnóstico e sensibilidade {.unnumbered}
+
+### Pergunta do domínio
+
+> O modelo de contagens está adequado? Há superdispersão ou excesso de zeros?
+
+### 4.1 Diagnóstico detalhado
+
+```{r}
+# Usar o ajuste do Fluxo 1
+diag <- agri_diagnose(fit, simulate = TRUE, nsim = 100)
+
+# Status geral
+cat("Status geral:", diag$status, "\n")
+
+# Componentes do diagnóstico
+names(diag)
+```
+
+### 4.2 Sensibilidade a famílias alternativas
+
+```{r}
+# Testar famílias alternativas para verificar robustez
+# Nota: agri_sensitivity pode falhar com certas combinações
+sens <- tryCatch(
+  agri_sensitivity(fit, families = c("poisson", "nbinom2", "nbinom1")),
+  error = function(e) {
+    cat("Sensibilidade não disponível:", conditionMessage(e), "\n")
+    NULL
+  }
+)
+if (!is.null(sens)) print(sens)
+```
+
+### 4.3 Validação cruzada
+
+```{r}
+# Validação cruzada com 5 dobras, respeitando blocos
+cv_result <- agri_cv(fit, v = 5L, unit = "block")
+print(cv_result)
+```
+
+### Lição
+
+> Um diagnóstico aceitável não garante o melhor modelo; ele garante que o
+> modelo não tem problemas evidentes. Compare sempre com famílias alternativas
+> usando métricas de predição.
+
+## Encerramento {.unnumbered}
+
+### Fluxo completo do pacote
+
+```{mermaid}
+graph TD
+    A[Dados brutos] --> B[agri_design]
+    B --> C[agri_response]
+    C --> D[agri_family_scan]
+    D --> E[agri_model]
+    E --> F[agri_diagnose]
+    F --> G[agri_means / agri_contrasts]
+    G --> H[agri_plot_*]
+    E --> I[agri_regression]
+    I --> J[agri_compare_curves]
+    F --> K[agri_cv / agri_bootstrap]
+    E --> L[agri_report]
+```
+
+### Regras de boas práticas
+
+1. **Declare o delineamento antes de ajustar**: a unidade experimental
+   determina a estrutura de variância.
+2. **Não pescar p**: a seleção de modelo deve ser baseada em critérios
+   pré-definidos (AIC, BIC, validação cruzada), não em significância.
+3. **Verifique sempre os resíduos**: convergência não é suficiente.
+4. **Registre as decisões**: use `agri_audit()` para rastrear o que foi
+   feito e por quê.
+5. **Use sementes fixas**: reprodutibilidade é essencial para ciência.
+
+### Exercícios
+
+<details>
+<summary>Exercício 1 (Nível Básico)</summary>
+
+Ajuste um modelo Poisson para os dados `agri_disease` usando `agri_glm()`.
+Compare os resultados com os da chamada direta a `glm()`.
+
+```{r}
+# Sua resposta aqui
+```
+
+</details>
+
+<details>
+<summary>Exercício 2 (Nível Intermediário)</summary>
+
+Para os dados `agri_germination`, ajuste um modelo binomial com `agri_glm()`
+e outro com `agri_model(family = "auto")`. Compare as estimativas.
+
+```{r}
+# Sua resposta aqui
+```
+
+</details>
+
+<details>
+<summary>Exercício 3 (Nível Avançado)</summary>
+
+Use `agri_workflow()` para analisar os dados `agri_splitplot` como um
+delineamento split-plot. Verifique se o pacote detectou corretamente a
+estrutura de parcela principal.
+
+```{r}
+# Sua resposta aqui
+```
+
+</details>
+
+### Como citar
+
+```{r}
+citation("agriGLMflow")
+```
+
+```{r}
+packageVersion("agriGLMflow")
+R.version.string
+```
+
+```{r}
+sessionInfo()
+```
