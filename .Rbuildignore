@@ -12,11 +12,14 @@
 ^agriGLMflow_.*\.zip$
 ^agriGLMflow_Cheatsheet_EN\.pdf$
 ^Cheatsheet_unified\.png$
-^v19-state-of-the-art\.Rmd$
 ^agriGLMflow_static_validation\.txt$
 ^agriGLMflow_VALIDACAO_LOCAL_DETALHADA\.md$
 ^agriGLMflow_0\.1\.0-with-local-validation-guide\.zip$
-^references\.bib$
 ^tools$
 ^FIXES_SUMMARY\.md$
 ^cheatsheet$
+^inst/cheatsheet/.*\.html$
+^\.github$
+^19-state-of-the-art\.Rmd$
+^HANDOFF\.md$
+^references\.bib$
