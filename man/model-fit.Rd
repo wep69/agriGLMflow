@@ -77,3 +77,41 @@ backend fit is retained in \code{engine_fit}.}
   \item{deep}{Logical; if \code{TRUE}, perform deep sensitivity analysis.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+The fitting functions in this topic return a list of class
+\code{agri_model} with components:
+\describe{
+  \item{\code{call}}{The matched call.}
+  \item{\code{data}}{The data frame used for fitting.}
+  \item{\code{design}}{The \code{agri_design} object used.}
+  \item{\code{response}}{The \code{agri_response} object used.}
+  \item{\code{formula}}{The fitted model formula.}
+  \item{\code{family}}{Character string naming the fitted family.}
+  \item{\code{family_spec}}{Expert family specification, or \code{NULL}.}
+  \item{\code{family_info}}{One-row data frame of family capability
+    metadata; see \code{agri_families()}.}
+  \item{\code{link}}{Link function used, or \code{NULL} when the family
+    implies it.}
+  \item{\code{engine}}{Character string naming the engine that fitted the
+    model.}
+  \item{\code{engine_fit}}{The original backend fit object.}
+  \item{\code{convergence}}{List recording the outcome of the convergence
+    gate.}
+  \item{\code{ziformula}}{Zero-inflation formula, or \code{NULL}.}
+  \item{\code{dispformula}}{Dispersion formula, or \code{NULL}.}
+  \item{\code{family_args}}{List of family-constructor arguments used.}
+  \item{\code{engine_args}}{List of engine arguments used.}
+  \item{\code{diagnostics}}{Diagnostics object, or \code{NULL} until
+    computed by \code{agri_diagnose()}.}
+  \item{\code{inference}}{Stored post-hoc inference results, or
+    \code{NULL}.}
+  \item{\code{predictions}}{Stored predictions, or \code{NULL}.}
+  \item{\code{model_metrics}}{List of model fit metrics.}
+  \item{\code{warnings}}{Character vector of warnings raised during
+    fitting.}
+  \item{\code{audit}}{Data frame with columns \code{time}, \code{step},
+    \code{decision}, \code{reason} and \code{status}.}
+  \item{\code{session}}{List recording session and package version
+    information.}
+}
+}

@@ -282,10 +282,13 @@ agri_contrasts <- function(object, specs = NULL, method = "pairwise",
   if (!is.null(weights)) {
     ct <- emmeans::contrast(em, method = weights, adjust = adjust)
   } else if (dunnett) {
-    levs <- try(levels(em)[[as.character(specs)[1L]]], silent = TRUE)
+    # `as.character()` on a formula yields one element per deparsed term
+    # ("~", "treatment"), so the predictor name must come from all.vars().
+    specs_var <- all.vars(specs)[1L]
+    levs <- try(levels(em)[[specs_var]], silent = TRUE)
     if (inherits(levs, "try-error") || is.null(levs)) {
       grd <- try(as.data.frame(em), silent = TRUE)
-      levs <- if (!inherits(grd, "try-error") && as.character(specs)[1L] %in% names(grd)) unique(as.character(grd[[as.character(specs)[1L]]])) else NULL
+      levs <- if (!inherits(grd, "try-error") && specs_var %in% names(grd)) unique(as.character(grd[[specs_var]])) else NULL
     }
     if (is.null(control)) control <- if (length(levs)) levs[1L] else 1L
     ref <- if (is.numeric(control)) as.integer(control)[1L] else match(as.character(control)[1L], levs)
@@ -425,15 +428,26 @@ agri_cld <- function(object, specs, adjust = "tukey", ...) {
   em <- emmeans::emmeans(object$engine_fit, specs = specs, ...)
   ct <- emmeans::contrast(em, method = "pairwise", adjust = adjust)
   tt <- as.data.frame(summary(ct))
-  # Create named vector of p-values for multcompLetters
+  # multcompLetters reads the two compared levels from the contrast label by
+  # splitting on "-". emmeans labels pairs as "A - B", and the spaces survive
+  # the split, so names such as "BioA " and " BioB" would never match the
+  # factor levels and every letter would come back NA. Collapse only the
+  # separator so level names that legitimately contain spaces are preserved.
   pvals <- tt$p.value
-  contrast_names <- apply(tt[, 1, drop = FALSE], 1, paste, collapse = "-")
-  names(pvals) <- contrast_names
+  contrast_names <- gsub(" - ", "-", as.character(tt[[1L]]), fixed = TRUE)
+  # Duplicated factor levels would otherwise produce duplicate names; keep the
+  # first occurrence so multcompLetters receives one p-value per pair.
+  keep <- !duplicated(contrast_names)
+  pvals <- pvals[keep]
+  names(pvals) <- contrast_names[keep]
+  pvals <- pvals[is.finite(pvals)]
   cld_result <- multcompView::multcompLetters(pvals)
   out <- as.data.frame(em)
-  # Match levels to CLD letters
-  level_col <- as.character(specs)
-  out$.cld <- cld_result$Letters[match(as.character(out[[level_col]]), names(cld_result$Letters))]
+  # Match levels to CLD letters. The predictor name must be extracted with
+  # all.vars(): as.character(~ treatment) returns c("~", "treatment").
+  level_col <- all.vars(specs)[1L]
+  out$.cld <- cld_result$Letters[match(trimws(as.character(out[[level_col]])),
+                                       trimws(names(cld_result$Letters)))]
   out
 }
 

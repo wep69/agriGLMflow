@@ -16,11 +16,21 @@ agri_compare_models <- function(..., models = NULL, strategy = c("admissibility"
   model_names[blank] <- paste0("model", which(blank))
   names(models) <- model_names
 
-  design_sig <- vapply(models, function(m) paste(m$design$design %||% "formula", m$formula, sep = "::"), character(1))
+  # `paste()` on a formula object returns one element per deparsed term
+  # (e.g. "~", "y", "x"), so the formula must be collapsed before pasting.
+  design_sig <- vapply(models, function(m) {
+    paste(m$design$design %||% "formula",
+          paste(deparse(m$formula), collapse = ""), sep = "::")
+  }, character(1))
   # Families may differ but fixed/random structures must be the same. Normalize the formula text.
   form_sig <- vapply(models, function(m) paste(deparse(m$formula), collapse = ""), character(1))
   if (length(unique(form_sig)) > 1L) {
     .agri_warn("Compared models use different formulas. Interpret information criteria cautiously because family and structural changes are confounded.")
+  }
+  # Information criteria are only comparable when the experimental-unit
+  # structure is identical: a different design changes the likelihood itself.
+  if (length(unique(design_sig)) > 1L) {
+    .agri_warn("Compared models were fitted under different experimental designs. Information criteria are not comparable across designs because the experimental-unit structure changes the likelihood.")
   }
 
   tab <- do.call(rbind, lapply(seq_along(models), function(i) {

@@ -384,11 +384,14 @@ print(metricas)
 # Usar o ajuste do Fluxo 1
 diag <- agri_diagnose(fit, simulate = TRUE, nsim = 100)
 
-# Status geral
-cat("Status geral:", diag$status, "\n")
+# Status geral: campo 'overall' ("acceptable", "review" ou "problem")
+cat("Status geral:", diag$overall, "\n")
 
 # Componentes do diagnóstico
 names(diag)
+
+# Ver o resumo formatado
+print(diag)
 ```
 
 ### 4.2 Sensibilidade a famílias alternativas

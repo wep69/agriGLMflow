@@ -384,11 +384,14 @@ print(metrics)
 # Use the fit from Workflow 1
 diag <- agri_diagnose(fit, simulate = TRUE, nsim = 100)
 
-# Overall status
-cat("Overall status:", diag$status, "\n")
+# Overall status: the 'overall' field ("acceptable", "review" or "problem")
+cat("Overall status:", diag$overall, "\n")
 
 # Diagnostic components
 names(diag)
+
+# Formatted summary
+print(diag)
 ```
 
 ### 4.2 Sensitivity to Alternative Families

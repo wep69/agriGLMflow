@@ -14,3 +14,10 @@ is available for compatible single-grouping-factor models fitted
 by adaptive quadrature. GAMLSS provides distributional regression.
 Optional engines remain isolated so missing packages cause
 informative feature-level errors rather than namespace failures.}
+\value{
+\code{agri_engines()} returns a summary of the statistical engines used by
+agriGLMflow, reporting for each engine whether its package is currently
+available and which version is installed. \code{agri_dependencies()}
+returns the same summary together with the modelling feature each engine
+provides.
+}

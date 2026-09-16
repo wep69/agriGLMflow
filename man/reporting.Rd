@@ -19,3 +19,12 @@ agri_export(object, path, what = c("audit", "model_table", "report"), ...)
   \item{what}{A character string specifying what to export ("audit", "model_table", "report").}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+\code{agri_report()} returns a character string giving the path to the
+generated report file.
+
+\code{agri_audit()} returns a data frame with columns \code{time},
+\code{step}, \code{decision}, \code{reason} and \code{status}.
+
+\code{agri_export()} returns the path to the exported file.
+}

@@ -60,6 +60,43 @@ agri_design_info(design)
   \item{strict}{Logical; if \code{TRUE}, perform strict validation.}
   \item{response}{A character string specifying the response variable name.}
 }
+\value{
+\code{agri_design()} returns a list of class \code{agri_design} with
+components:
+\describe{
+  \item{\code{data}}{The experimental data frame.}
+  \item{\code{design}}{Character string naming the declared design, for
+    example \code{"rcbd"}.}
+  \item{\code{treatment}}{Character string naming the treatment factor.}
+  \item{\code{blocking}}{Character string naming the block factor.}
+  \item{\code{experimental_units}}{Character vector of required
+    experimental-unit strata; may be empty.}
+  \item{\code{fixed_terms}}{Character vector of fixed-effect terms.}
+  \item{\code{random_terms}}{Character vector of required random-effect
+    terms, which a backend must retain.}
+  \item{\code{columns}}{Character vector of the data columns used by the
+    declared design.}
+  \item{\code{roles}}{Named list mapping each recognized experimental role
+    to its declared column, or \code{NULL} when a role is not declared.}
+  \item{\code{options}}{List of design options named \code{block_effect},
+    \code{genotype_effect}, \code{environment_effect},
+    \code{interaction_effect}, \code{covariance} and \code{dots}.}
+  \item{\code{audit}}{Data frame recording the design decision, with
+    columns \code{time}, \code{step}, \code{decision}, \code{reason} and
+    \code{status}.}
+}
+
+\code{agri_validate_design()} returns a list reporting \code{valid}
+(logical) and \code{problems} (character vector of detected problems).
+\code{agri_design_formula()} returns the design-preserving model formula.
+
+\code{agri_design_info()} returns a plain list with components
+\code{design}, \code{treatment}, \code{blocking},
+\code{experimental_units}, \code{fixed_terms}, \code{random_terms},
+\code{roles}, \code{options} and \code{validation}, where
+\code{validation} holds the \code{valid} and \code{problems} components
+described above.
+}
 \examples{
 \dontrun{
 data(agri_insects)

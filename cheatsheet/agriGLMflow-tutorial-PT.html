@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Walter E. Pereira e Magali H. P. Martinez">
-<meta name="dcterms.date" content="2026-08-17">
+<meta name="dcterms.date" content="2026-09-16">
 
 <title>Tutorial agriGLMflow: fluxos completos de modelagem para experimentos agronômicos</title>
 <style>
@@ -5385,7 +5385,7 @@ z-index: 1000;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">August 17, 2026</p>
+      <p class="date">September 16, 2026</p>
     </div>
   </div>
   
@@ -5979,15 +5979,24 @@ z-index: 1000;
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Usar o ajuste do Fluxo 1</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>diag <span class="ot">&lt;-</span> <span class="fu">agri_diagnose</span>(fit, <span class="at">simulate =</span> <span class="cn">TRUE</span>, <span class="at">nsim =</span> <span class="dv">100</span>)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Status geral</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Status geral:&quot;</span>, diag<span class="sc">$</span>status, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Status geral:</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Status geral: campo &#39;overall&#39; (&quot;acceptable&quot;, &quot;review&quot; ou &quot;problem&quot;)</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Status geral:&quot;</span>, diag<span class="sc">$</span>overall, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Status geral: review</span></span>
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Componentes do diagnóstico</span></span>
 <span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(diag)</span>
 <span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [1] &quot;overall&quot;     &quot;convergence&quot; &quot;dispersion&quot;  &quot;zeros&quot;       &quot;residuals&quot;  </span></span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [6] &quot;random&quot;      &quot;influence&quot;   &quot;dependence&quot;  &quot;DHARMa&quot;      &quot;VGAM&quot;       </span></span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [11] &quot;GAMLSS&quot;      &quot;messages&quot;    &quot;model&quot;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [11] &quot;GAMLSS&quot;      &quot;messages&quot;    &quot;model&quot;</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Ver o resumo formatado</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(diag)</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; &lt;agri_diagnostics&gt;</span></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Overall: review </span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Convergence: acceptable </span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Dispersion ratio: 1.151 </span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  Notes:</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  - Residual shape warrants review (skewness 1.293; excess kurtosis 1.221).</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -6275,25 +6284,25 @@ Exercício 3 (Nível Avançado)
 <span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [1] ggplot2_4.0.3     agriGLMflow_0.1.0</span></span>
 <span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; </span></span>
 <span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [1] gtable_0.3.6        TMB_1.9.23          xfun_0.60          </span></span>
-<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [4] htmlwidgets_1.6.4   lattice_0.22-9      numDeriv_2016.8-1.1</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [1] gtable_0.3.6        TMB_1.9.25          xfun_0.60          </span></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [4] htmlwidgets_1.6.4   lattice_0.23-1      numDeriv_2016.8-1.1</span></span>
 <span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;  [7] vctrs_0.7.3         tools_4.6.0         Rdpack_2.6.6       </span></span>
-<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [10] generics_0.1.4      flexmix_2.3-20      stats4_4.6.0       </span></span>
-<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [13] sandwich_3.1-2      tibble_3.3.1        pkgconfig_2.0.3    </span></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [10] generics_0.1.4      flexmix_2.3-21      stats4_4.6.0       </span></span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [13] sandwich_3.1-3      tibble_3.3.1        pkgconfig_2.0.3    </span></span>
 <span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [16] Matrix_1.7-6        DHARMa_0.5.0        RColorBrewer_1.1-3 </span></span>
 <span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [19] S7_0.2.2            lifecycle_1.0.5     compiler_4.6.0     </span></span>
 <span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [22] farver_2.1.2        statmod_1.5.2       minpack.lm_1.2-4   </span></span>
 <span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [25] codetools_0.2-20    htmltools_0.5.9     yaml_2.3.12        </span></span>
-<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [28] Formula_1.2-5       pillar_1.11.1       nloptr_2.2.1       </span></span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [28] Formula_1.2-6       pillar_1.11.1       nloptr_2.2.1       </span></span>
 <span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [31] MASS_7.3-66         betareg_3.2-5       reformulas_0.4.4   </span></span>
-<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [34] boot_1.3-32         multcomp_1.4-31     nlme_3.1-170       </span></span>
+<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [34] boot_1.3-32         multcomp_1.4-31     nlme_3.1-171       </span></span>
 <span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [37] tidyselect_1.2.1    digest_0.6.39       mvtnorm_1.4-2      </span></span>
 <span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [40] dplyr_1.2.1         labeling_0.4.3      splines_4.6.0      </span></span>
 <span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [43] fastmap_1.2.0       grid_4.6.0          cli_3.6.6          </span></span>
-<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [46] magrittr_2.0.5      dichromat_2.0-1     survival_3.8-9     </span></span>
+<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [46] magrittr_2.0.5      dichromat_2.0-1     survival_3.8-11    </span></span>
 <span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [49] TH.data_1.1-5       withr_3.0.3         scales_1.4.0       </span></span>
 <span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [52] estimability_2.0.0  rmarkdown_2.31      emmeans_2.0.4      </span></span>
-<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [55] nnet_7.3-20         otel_0.2.0          lme4_2.0-6         </span></span>
+<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [55] nnet_7.3-21         otel_0.2.0          lme4_2.0-6         </span></span>
 <span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [58] modeltools_0.2-24   zoo_1.9-0           coda_0.19-4.1      </span></span>
 <span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [61] evaluate_1.0.5      knitr_1.51          glmmTMB_1.1.14     </span></span>
 <span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; [64] rbibutils_2.4.1     lmtest_0.9-40       mgcv_1.9-4         </span></span>

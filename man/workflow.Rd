@@ -37,3 +37,13 @@ agri_example_data(name = c("agri_insects", "agri_disease",
   \item{name}{A character string specifying the example dataset name.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+\code{agri_workflow()} returns the assembled workflow result as an object
+of class \code{agri_workflow}, retaining the outputs of every step the
+workflow carried out: design declaration, response characterization,
+family screening, model fitting and selection, diagnostics, the requested
+post-hoc inference, predictions, optional figures, the audit trail and,
+when \code{report_file} is supplied, the generated report path.
+
+\code{agri_example_data()} returns the requested bundled example dataset.
+}

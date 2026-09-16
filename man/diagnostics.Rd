@@ -29,3 +29,37 @@ agri_check_dependence(object, ...)
   \item{seed}{An integer specifying the random seed for reproducibility.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+An object of class \code{agri_diagnostics}, a list with the following
+components:
+
+\item{overall}{Character status of the whole diagnostic set: \code{"acceptable"},
+\code{"review"} or \code{"problem"}. This is the component to report; it is
+\emph{not} named \code{status}.}
+\item{convergence}{List with \code{status} (\code{"acceptable"} or
+\code{"problem"}) and engine-specific \code{details}.}
+\item{dispersion}{List with \code{status} (\code{"acceptable"},
+\code{"possible_overdispersion"}, \code{"possible_underdispersion"} or
+\code{"not_available"}), \code{ratio} (Pearson dispersion) and
+\code{pearson_residuals}.}
+\item{zeros}{List with \code{status}, \code{observed_fraction},
+\code{expected_fraction} and the simulated \code{simulated_interval} when
+available.}
+\item{residuals}{List with \code{pearson}, \code{skewness},
+\code{excess_kurtosis} and \code{shape_status}.}
+\item{random}{Random-effect variance components and near-boundary flags, or
+\code{status = "not_applicable"} when the model has no random effects.}
+\item{influence}{Influence measures and flagged observations, or
+\code{status = "not_available"}.}
+\item{dependence}{List with \code{temporal} (autocorrelation) and
+\code{cluster} (intra-class correlation) sub-diagnostics.}
+\item{DHARMa}{Simulated quantile residual diagnostics when \code{simulate = TRUE}
+and the backend is supported; otherwise \code{NULL}.}
+\item{VGAM, GAMLSS}{Engine-specific residual information, or \code{NULL}.}
+\item{messages}{Character vector of human-readable notes explaining any
+non-acceptable component.}
+\item{model}{The fitted \code{agri_model} object.}
+
+The extractor functions \code{agri_check_*} return the corresponding single
+component.
+}

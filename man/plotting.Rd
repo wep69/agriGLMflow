@@ -29,3 +29,10 @@
   \item{metric}{A character string specifying the metric for family scan plots.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+Every plotting function documented here returns an object of class
+\code{ggplot}, which is drawn when it is printed. Creating these objects
+requires the \pkg{ggplot2} package. Because the returned value is a
+\code{ggplot} object, it can be extended with further \pkg{ggplot2} layers
+before it is printed.
+}

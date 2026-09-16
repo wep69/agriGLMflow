@@ -12,3 +12,12 @@ agri_compare_models(..., models = NULL, strategy = c("admissibility", "AIC", "BI
   \item{strategy}{A character string specifying the comparison strategy ("admissibility", "AIC", "BIC").}
   \item{diagnostics}{Logical; if \code{TRUE}, include diagnostic information in comparison.}
 }
+\value{
+\code{agri_compare_models()} returns the result of the comparison: the
+compared models ranked according to \code{strategy}, with the selected
+model identified. Under the default admissibility strategy, admissible
+models are ranked first and information criteria are used only to order
+admissible candidates. A warning is issued when the compared models use
+different formulas, and when they were fitted under different experimental
+designs the information criteria are reported as not comparable.
+}

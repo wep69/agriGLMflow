@@ -47,7 +47,11 @@ bootstrap simultaneous max-|t| procedure when bootstrap draws
 are requested. Compact-letter displays are intentionally not
 used for VGAM or GLMMadaptive standardized predictions. Ordinal
 predictions are returned as category probabilities on the
-response scale.}
+response scale. \code{agri_anova()} requires an engine able to
+produce a deviance or ANOVA table; this is verified for engine
+\code{"stats"}. Engines without that capability, for example
+\code{"glmmTMB"}, raise an informative error instead of returning a
+table.}
 \arguments{
   \item{object}{An object of class \code{agri_model}.}
   \item{specs}{A character string or formula specifying the variables for which to compute means or contrasts.}
@@ -69,4 +73,30 @@ response scale.}
   \item{newdata}{An optional data frame for predictions.}
   \item{type}{A character string specifying the prediction type ("response", "link", "conditional", "marginal").}
   \item{...}{Additional arguments passed to methods.}
+}
+\value{
+\code{agri_anova()} returns an \code{anova} table (a data frame) for
+engines that support a deviance or ANOVA table. Engine \code{"stats"} is
+verified to support this. For engines that cannot produce such a table the
+function raises an informative error; engine \code{"glmmTMB"} fails with
+the message \code{"ANOVA/deviance table is not available for
+engine 'glmmTMB' with these arguments."}.
+
+\code{agri_means()} returns a list of class \code{agri_posthoc} with
+components \code{method}, \code{table}, \code{emmeans}, \code{scale},
+\code{adjust} and \code{object}.
+
+\code{agri_contrasts()} returns a list of class \code{agri_posthoc} with
+components \code{method}, \code{table}, \code{contrasts}, \code{scale},
+\code{adjust}, \code{control} and \code{object}.
+
+\code{agri_predict()} returns a numeric vector of predictions.
+
+\code{agri_trends()}, \code{agri_simple_effects()} and
+\code{agri_interaction_contrast()} return post-hoc summaries for trends,
+simple effects and interaction contrasts respectively.
+\code{agri_effects()} returns marginal-effect summaries, or model
+predictions with a warning when the \pkg{marginaleffects} package is
+unavailable. \code{agri_cld()} returns a compact-letter display and is not
+available for VGAM models.
 }

@@ -51,3 +51,67 @@ agri_family_scan(data, response, design = NULL, candidates = "auto", tier = 1L,
   \item{engine_args}{A list of additional arguments passed to the engine.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+\code{agri_response()} returns a list of class \code{agri_response} with
+components:
+\describe{
+  \item{\code{name}}{Name of the response variable.}
+  \item{\code{denominator}}{Denominator for proportion or binomial-count
+    responses, or \code{NULL}.}
+  \item{\code{type}}{Character string giving the characterized response
+    type, for example \code{"count"}.}
+  \item{\code{process}}{Declared response process, or \code{NULL}.}
+  \item{\code{multivariate}}{Logical; \code{TRUE} for multivariate
+    responses.}
+  \item{\code{n}}{Number of observations.}
+  \item{\code{n_missing}}{Number of missing observations.}
+  \item{\code{mean}}{Observed mean.}
+  \item{\code{variance}}{Observed variance.}
+  \item{\code{variance_mean_ratio}}{Variance-to-mean ratio, used to signal
+    over- or under-dispersion.}
+  \item{\code{sd}}{Observed standard deviation.}
+  \item{\code{min}}{Observed minimum.}
+  \item{\code{max}}{Observed maximum.}
+  \item{\code{zero_fraction}}{Observed fraction of zeros.}
+  \item{\code{one_fraction}}{Observed fraction of ones.}
+  \item{\code{boundary_pattern}}{Character string describing boundary
+    behaviour such as zero or one inflation, or \code{NA}.}
+  \item{\code{poisson_zero_expected}}{Expected zero fraction under a
+    Poisson model with the observed mean.}
+  \item{\code{zero_excess_ratio}}{Ratio of observed to expected zeros.}
+  \item{\code{skewness}}{Observed skewness.}
+  \item{\code{excess_kurtosis}}{Observed excess kurtosis.}
+  \item{\code{n_unique}}{Number of distinct observed values.}
+  \item{\code{levels}}{Declared levels of a categorical response, or
+    \code{NULL}.}
+  \item{\code{ordered}}{Logical; \code{TRUE} for ordered categorical
+    responses.}
+  \item{\code{bounds}}{Named numeric vector of length two giving the
+    declared support bounds.}
+  \item{\code{audit}}{Data frame with columns \code{time}, \code{step},
+    \code{decision}, \code{reason} and \code{status}.}
+}
+
+\code{agri_response_info()} returns the same response metadata as a plain
+list. \code{agri_distribution_map()} returns a character vector of the
+distribution domains admissible for the characterized response.
+
+\code{agri_families()} and \code{agri_family_info()} return a data frame
+with one row per family and columns \code{id}, \code{label},
+\code{response_type}, \code{domain}, \code{engine}, \code{engine_family},
+\code{random_effects}, \code{multivariate}, \code{multiparameter},
+\code{smooth}, \code{zero_inflation}, \code{hurdle}, \code{truncation},
+\code{censoring}, \code{simulation}, \code{posthoc_mode}, \code{tier} and
+\code{notes}.
+
+\code{agri_family_candidates()} returns a character vector of admissible
+family identifiers. \code{agri_family_spec()} returns an expert family
+specification object for the requested backend.
+
+\code{agri_family_scan()} returns a list of class \code{agri_family_scan}
+with components \code{response}, \code{design}, \code{candidates},
+\code{table}, \code{models}, \code{recommended} and \code{audit}. The
+\code{table} element is a data frame with columns \code{family},
+\code{engine}, \code{status}, \code{converged}, \code{AIC}, \code{BIC},
+\code{logLik}, \code{note}, \code{delta_AIC} and \code{role}.
+}

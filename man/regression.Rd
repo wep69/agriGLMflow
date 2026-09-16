@@ -31,3 +31,22 @@ agri_compare_curves(data, response, x, group,
   \item{group}{A character string or expression specifying the group variable for curve comparison.}
   \item{...}{Additional arguments passed to methods.}
 }
+\value{
+\code{agri_regression()} returns a list of class \code{agri_regression}
+with components:
+\describe{
+  \item{\code{model}}{Character string naming the fitted regression
+    model.}
+  \item{\code{engine}}{Character string naming the engine used.}
+  \item{\code{fit}}{The backend fit object.}
+  \item{\code{data}}{The data frame used for fitting.}
+  \item{\code{response}}{Character string naming the response variable.}
+  \item{\code{x}}{Character string naming the quantitative predictor.}
+  \item{\code{targets}}{Data frame of dose-response targets, including
+    uncertainty where these are defined.}
+  \item{\code{family}}{Character string naming the distribution family.}
+}
+
+\code{agri_compare_curves()} returns the common and group-specific curves
+together with the level, shape and overall curve-difference tests.
+}
