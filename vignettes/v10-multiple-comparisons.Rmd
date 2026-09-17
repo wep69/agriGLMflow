@@ -9,6 +9,10 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+# The code below is displayed rather than knitted, but R CMD check (R >= 4.6.1)
+# extracts and runs it in a clean process. Attaching the package here is what
+# makes that step pass and keeps the examples copy-pasteable.
+library(agriGLMflow)
 ```
 
 `agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
@@ -18,6 +22,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 `emmeans` is used for model classes it supports natively. Available adjustments include Tukey, Dunnett, Holm, Sidak and FDR-compatible methods.
 
 ```{r}
+data(agri_insects)
+des <- agri_design(agri_insects, "rcbd", treatment="treatment", block="block")
 fit <- agri_model(agri_insects, response="insects", design=des, family="nbinom2")
 agri_means(fit,"treatment",scale="response")
 agri_contrasts(fit,"treatment",method="pairwise",adjust="tukey")

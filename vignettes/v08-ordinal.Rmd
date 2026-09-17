@@ -9,6 +9,10 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+# The code below is displayed rather than knitted, but R CMD check (R >= 4.6.1)
+# extracts and runs it in a clean process. Attaching the package here is what
+# makes that step pass and keeps the examples copy-pasteable.
+library(agriGLMflow)
 ```
 
 `agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
@@ -33,7 +37,11 @@ A proportional-odds VGAM cumulative model uses `parallel = TRUE`. Use `agri_chec
 ```{r, eval=FALSE}
 fit_po <- agri_ordinal(agri_ordstage, stage ~ treatment, model="cumulative", parallel=TRUE)
 agri_check_parallel(fit_po)
-fit_ppo <- agri_ordinal(agri_ordstage, stage ~ treatment + dose,
+# A partial proportional-odds model needs at least two predictors; the shipped
+# data set provides treatment and replicate. The point of the example is the
+# explicit VGAM constraint syntax, which is what separates partial from full
+# proportional odds.
+fit_ppo <- agri_ordinal(agri_ordstage, stage ~ treatment + replicate,
                         model="partial_proportional",
                         parallel = TRUE ~ -1 + treatment)
 ```

@@ -9,16 +9,31 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+# The code below is displayed rather than knitted, but R CMD check (R >= 4.6.1)
+# extracts and runs it in a clean process. Attaching the package here is what
+# makes that step pass and keeps the examples copy-pasteable.
+library(agriGLMflow)
 ```
 
 `agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
 
+```{r}
+data(agri_insects)
+des <- agri_design(agri_insects, "crd", treatment="treatment")
+fit <- agri_model(agri_insects, response="insects", design=des,
+                  family="poisson", engine="stats")
+```
+
 # Simulation
 
 ```{r}
+# The replication counts below are kept small so this vignette stays fast to
+# check. They are a speed resource, not a recommendation: a real analysis needs
+# a much larger bootstrap (R in the thousands) and a power simulation of at
+# least 1000 replicates per scenario before any precision is claimed.
 sim <- agri_simulate(fit,nsim=100,seed=2026)
-boot <- agri_bootstrap(fit,R=500,type="cluster",unit="block")
-pow <- agri_power(fit,term="treatment",nsim=1000)
+boot <- agri_bootstrap(fit,R=25,type="cluster",unit="block")
+pow <- agri_power(fit,term="treatment",nsim=25)
 ```
 
 Cluster bootstrap resamples experimental units rather than assuming individual observations are exchangeable. Parametric bootstrap simulates from the fitted model. Power is simulation-based and therefore conditional on the fitted parameterization.

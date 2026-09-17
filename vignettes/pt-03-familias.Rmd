@@ -9,6 +9,10 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+# The code below is displayed rather than knitted, but R CMD check (R >= 4.6.1)
+# extracts and runs it in a clean process. Attaching the package here is what
+# makes that step pass and keeps the examples copy-pasteable.
+library(agriGLMflow)
 ```
 
 # Famílias candidatas

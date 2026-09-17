@@ -1,5 +1,11 @@
 name: R-CMD-check
-on: [push, pull_request]
+# Manual trigger only: this repository does not run CI on push or pull request.
+# The workflow is kept so the four-platform matrix remains available on demand
+# (Actions tab, "Run workflow"). Re-enable the automatic triggers by restoring
+#   on: [push, pull_request]
+# once the runner cost and runtime are acceptable.
+on:
+  workflow_dispatch:
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}

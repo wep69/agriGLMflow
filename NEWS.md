@@ -1,5 +1,31 @@
 # agriGLMflow 0.1.0
 
+## Vignette code is now runnable
+
+`R CMD check` (R >= 4.6.1) added the step "checking running R code from
+vignettes", which extracts the R code from every vignette and runs it in a
+clean process, ignoring `eval = FALSE`. Only 3 of the 23 vignettes passed:
+none of them attached the package, so `agri_design()` and `data(agri_insects)`
+were both unavailable.
+
+* Every vignette now attaches the package in its setup chunk, which makes the
+  displayed code copy-pasteable and makes that check step pass.
+* Six vignettes had code that could not run at all because it referenced
+  objects that were never created or datasets that were never loaded:
+  `v08-ordinal` (a covariate that does not exist in `agri_ordstage`),
+  `v10-multiple-comparisons` (`des`), `v11-diagnostics` and
+  `v15-simulation-power` (`fit`), `v14-graphics` and `v17-reproducible`
+  (`agri_insects`). The missing definitions and data loads were added in an
+  earlier chunk of each file.
+* `v15-simulation-power` displayed `agri_bootstrap(R = 500)` and
+  `agri_power(nsim = 1000)`, which alone took 236 s in that check step. The
+  counts are now 25, with an explicit note that they are a speed resource and
+  that a real analysis needs a much larger bootstrap and at least 1000 power
+  replicates per scenario. The step dropped from about 390 s to about 160 s.
+
+Verified by reproducing the check step with `tools:::.run_one_vignette()`, the
+same function `R CMD check` uses: 23 OK / 0 FAIL.
+
 ## Fixes from the API audit report
 
 The items below come from an audit of the public API against its own

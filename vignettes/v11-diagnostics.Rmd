@@ -9,9 +9,20 @@ vignette: >
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+# The code below is displayed rather than knitted, but R CMD check (R >= 4.6.1)
+# extracts and runs it in a clean process. Attaching the package here is what
+# makes that step pass and keeps the examples copy-pasteable.
+library(agriGLMflow)
 ```
 
 `agriGLMflow` follows a design-first rule: the experimental unit and dependence structure are defined before selecting a response family. Automated choices are auditable and are not based solely on P values or the smallest information criterion.
+
+```{r}
+data(agri_insects)
+des <- agri_design(agri_insects, "crd", treatment="treatment")
+fit <- agri_model(agri_insects, response="insects", design=des,
+                  family="poisson", engine="stats")
+```
 
 Diagnostics are organized as gates: convergence first, then dispersion, zeros, residual behavior, random-effect boundaries, influence and residual dependence.
 
