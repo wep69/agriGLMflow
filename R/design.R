@@ -69,12 +69,16 @@ agri_design <- function(data,
   treatment_terms <- treatment %||% character()
 
   if (design == "crd") {
-    if (!length(treatment_terms)) .agri_abort("CRD requires 'treatment'.")
+    if (!length(treatment_terms)) {
+      .agri_abort("CRD requires 'treatment'. Pass the treatment column as treatment = \"<column>\", or through design_args when using agri_workflow().")
+    }
     fixed_terms <- .interaction_term(treatment_terms)
   }
 
   if (design == "rcbd") {
-    if (!length(treatment_terms) || !length(block)) .agri_abort("RCBD requires 'treatment' and 'block'.")
+    if (!length(treatment_terms) || !length(block)) {
+      .agri_abort("RCBD requires 'treatment' and 'block'. Pass the blocking column through design_args, for example design_args = list(block = \"block\").")
+    }
     fixed_terms <- .interaction_term(treatment_terms)
     blocking <- block
     if (block_effect == "random") random_terms <- .random_term(.bt(block))
@@ -83,7 +87,7 @@ agri_design <- function(data,
 
   if (design == "latin_square") {
     if (!length(treatment_terms) || !length(row) || !length(column)) {
-      .agri_abort("Latin square requires 'treatment', 'row', and 'column'.")
+      .agri_abort("Latin square requires 'treatment', 'row', and 'column'. Pass them through design_args, for example design_args = list(row = \"row\", column = \"column\").")
     }
     blocking <- c(row, column)
     fixed_terms <- .interaction_term(treatment_terms)

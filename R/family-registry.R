@@ -153,14 +153,21 @@ agri_family_info <- function(family) {
   }
   reg <- .family_registry()
   out <- reg[reg$id == family, , drop = FALSE]
-  if (!nrow(out)) .agri_abort(sprintf("Family '%s' is not registered. Use agri_families() or agri_family_spec() for an expert backend family.", family))
+  if (!nrow(out)) {
+    # Say where the accepted values are, and show a few, the way agri_vglm()
+    # already does. A bare "not registered" leaves the user guessing.
+    near <- reg$id[reg$tier == 1L]
+    .agri_abort(sprintf(
+      "Family '%s' is not registered. Run agri_families() to list all accepted identifiers, or agri_family_spec() for an expert backend family. Tier 1 examples: %s.",
+      family, paste(utils::head(near, 12L), collapse = ", ")))
+  }
   out
 }
 
 #' Return family candidates for a response
 #' @export
 agri_family_candidates <- function(response, design = NULL, tier = 1L, include_sensitivity = TRUE) {
-  if (!inherits(response, "agri_response")) .agri_abort("'response' must be an agri_response object.")
+  response <- .coerce_response(response)
   reg <- .family_registry()
   reg <- reg[reg$tier <= max(tier), , drop = FALSE]
   type <- response$type

@@ -27,7 +27,10 @@ agri_family_scan(data, response, design = NULL, candidates = "auto", tier = 1L,
 \details{The count registry includes Poisson, negative-binomial, COM-Poisson, generalized-Poisson, zero-inflated and hurdle variants. Family screening first applies support and design-compatibility gates. Model convergence and diagnostics are then considered. Information criteria rank only structurally admissible candidates and never override experimental-design incompatibility. Multivariate response vectors can be recognized as positive compositions or categorical-count matrices for VGAM Dirichlet and Dirichlet-multinomial workflows. Compositions containing boundary zeros are flagged separately rather than being forced into an ordinary Dirichlet model. Families are divided into validated, advanced and expert tiers.}
 \arguments{
   \item{data}{A data frame containing the experimental data.}
-  \item{response}{A character string, expression, or agri_response object specifying the response variable.}
+  \item{response}{A character string, expression, or agri_response object
+specifying the response variable. For \code{agri_response_info()},
+\code{agri_distribution_map()} and \code{agri_family_candidates()}, a bare
+response vector is accepted and promoted automatically.}
   \item{process}{An optional character string specifying the response process type.}
   \item{denominator}{An optional character string or expression specifying the denominator for binomial responses.}
   \item{lower}{An optional numeric value specifying the lower bound.}
@@ -95,6 +98,20 @@ components:
 \code{agri_response_info()} returns the same response metadata as a plain
 list. \code{agri_distribution_map()} returns a character vector of the
 distribution domains admissible for the characterized response.
+\code{agri_family_candidates()} returns a character vector of admissible
+family identifiers.
+
+These three functions accept either an \code{agri_response} object or a
+bare response vector. A vector is promoted automatically to a one-column
+response characterization, so \code{agri_response_info(agri_disease$severity)}
+works as well as passing \code{agri_response(agri_disease, "severity")}.
+A matrix with more than one column is promoted to a multivariate
+characterization through \code{as.data.frame()}. Anything else raises an
+error naming the class received and pointing out that a bare vector is
+promoted.
+
+\code{agri_family_spec()} returns an expert family
+specification object for the requested backend.
 
 \code{agri_families()} and \code{agri_family_info()} return a data frame
 with one row per family and columns \code{id}, \code{label},
@@ -103,10 +120,6 @@ with one row per family and columns \code{id}, \code{label},
 \code{smooth}, \code{zero_inflation}, \code{hurdle}, \code{truncation},
 \code{censoring}, \code{simulation}, \code{posthoc_mode}, \code{tier} and
 \code{notes}.
-
-\code{agri_family_candidates()} returns a character vector of admissible
-family identifiers. \code{agri_family_spec()} returns an expert family
-specification object for the requested backend.
 
 \code{agri_family_scan()} returns a list of class \code{agri_family_scan}
 with components \code{response}, \code{design}, \code{candidates},

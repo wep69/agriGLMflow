@@ -9,6 +9,23 @@ agri_workflow <- function(data, response, denominator = NULL, treatment = NULL,
                           report_file = NULL, report_format = "markdown", ...) {
   design <- match.arg(design)
   response <- as.character(response)
+  # `model_args` exists to give control over the fit, and family is the first
+  # thing a user wants to control. Passing it there used to reach do.call()
+  # twice and abort with a base-R message that never mentioned model_args.
+  reserved <- intersect(names(model_args), c("data", "response", "design", "formula"))
+  if (length(reserved)) {
+    .agri_abort(sprintf(
+      "model_args must not set %s; the workflow supplies these from its own arguments.",
+      paste(sprintf("'%s'", reserved), collapse = ", ")))
+  }
+  fit_selected <- function(default_family) {
+    fam_final <- model_args$family %||% default_family
+    ma <- model_args
+    ma$family <- NULL
+    if (is.null(fam_final) || !length(fam_final)) return(NULL)
+    do.call(agri_model, c(list(data = data, response = resp, design = des,
+                               formula = wf_formula, family = fam_final), ma))
+  }
   if (is.null(design_args$treatment) && !is.null(treatment)) design_args$treatment <- treatment
   des <- do.call(agri_design, c(list(data = data, design = design), design_args))
   resp <- if (is.null(denominator)) agri_response(data, response = response) else agri_response(data, response = response, denominator = denominator)
@@ -25,13 +42,13 @@ agri_workflow <- function(data, response, denominator = NULL, treatment = NULL,
     } else {
       comp <- NULL
       fam <- scan$recommended[1L]
-      selected <- if (isTRUE(select) && length(fam)) do.call(agri_model, c(list(data = data, response = resp, design = des, formula = wf_formula, family = fam), model_args)) else NULL
+      selected <- if (isTRUE(select)) fit_selected(fam) else NULL
     }
   } else {
     scan <- agri_family_scan(data, resp, des, candidates = family, tier = max(tier, 3L), fit = FALSE,
                              formula = wf_formula)
     comp <- NULL
-    selected <- if (isTRUE(select)) do.call(agri_model, c(list(data = data, response = resp, design = des, formula = wf_formula, family = family), model_args)) else NULL
+    selected <- if (isTRUE(select)) fit_selected(family) else NULL
   }
 
   dg <- if (!is.null(selected)) try(agri_diagnose(selected, simulate = deep_scan), silent = TRUE) else NULL

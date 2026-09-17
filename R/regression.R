@@ -58,63 +58,123 @@
   if (is.finite(vv) && vv >= 0) sqrt(vv) else NA_real_
 }
 
-.regression_targets <- function(fit, model, data, x, level = 0.95) {
-  cf <- try(stats::coef(fit), silent = TRUE)
-  if (inherits(cf, "try-error")) return(NULL)
-  if (is.list(cf) && !is.null(cf$cond)) cf <- cf$cond
-  cf <- unlist(cf)
-  vc <- try(stats::vcov(fit), silent = TRUE)
-  if (is.list(vc) && !is.null(vc$cond)) vc <- vc$cond
+.regression_targets <- function(fit, model, data, x, level = 0.95, by = NULL) {
+  # Read fixed effects through the engine-uniform extractor. stats::coef() on a
+  # glmmTMB fit returns a list, and unlist()ing it yields the random-effect
+  # entries ("block.(Intercept)1", "block.dose1", ...) rather than the fixed
+  # coefficients, so a positional read produced a meaningless target.
+  cf <- .reg_coef(fit)
+  if (is.null(cf) || !length(cf)) return(NULL)
+  vc <- .reg_vcov(fit)
   z <- stats::qnorm(1 - (1 - level) / 2)
-  make_row <- function(target, estimate, se = NA_real_) {
-    data.frame(target = target, estimate = as.numeric(estimate), SE = as.numeric(se),
-               lower = if (is.finite(se)) estimate - z * se else NA_real_,
-               upper = if (is.finite(se)) estimate + z * se else NA_real_,
-               level = level, row.names = NULL)
+  nm <- names(cf)
+
+  make_row <- function(target, estimate, se = NA_real_, group = NULL) {
+    out <- data.frame(target = target, estimate = as.numeric(estimate), SE = as.numeric(se),
+                      lower = if (is.finite(se)) estimate - z * se else NA_real_,
+                      upper = if (is.finite(se)) estimate + z * se else NA_real_,
+                      level = level, row.names = NULL)
+    if (!is.null(group)) out$group <- as.character(group)
+    out
   }
-  add_fun <- function(target, fun) {
+  add_fun <- function(target, fun, group = NULL) {
     est <- try(fun(cf), silent = TRUE)
     if (inherits(est, "try-error") || length(est) != 1L || !is.finite(est)) return(NULL)
     se <- .numeric_delta_se(fun, cf, vc)
-    make_row(target, est, se)
+    make_row(target, est, se, group)
   }
+
+  # Terms are located by name, never by position: a `by` interaction and a block
+  # term both shift positions, and names are the only stable anchor.
+  idx_lin <- match(x, nm)
+  idx_qua <- .quadratic_index(nm, x)
+  qua_name <- if (is.na(idx_qua)) NA_character_ else nm[idx_qua]
+
+  # One coefficient-index set per group of `by`; a single set otherwise.
+  # Each set lists the positions that must be SUMMED to obtain that group's
+  # linear and quadratic coefficients, so the delta method still runs on the
+  # full covariance matrix.
+  sets <- list(list(group = NULL,
+                    lin = if (is.na(idx_lin)) integer(0) else idx_lin,
+                    qua = if (is.na(idx_qua)) integer(0) else idx_qua))
+  if (!is.null(by) && length(by) && by %in% names(data) && !is.na(qua_name)) {
+    levs <- if (is.factor(data[[by]])) levels(data[[by]]) else sort(unique(as.character(data[[by]])))
+    sets <- lapply(levs, function(g) {
+      i_lin <- idx_lin
+      i_qua <- idx_qua
+      # The reference level carries no interaction term; every other level
+      # adds its interaction coefficient to the base term.
+      add <- function(base_name, base_idx) {
+        cand <- paste0(base_name, ":", by, g)
+        hit <- match(cand, nm, nomatch = 0L)
+        if (hit > 0L) c(base_idx, hit) else base_idx
+      }
+      list(group = g,
+           lin = add(x, if (is.na(idx_lin)) integer(0) else idx_lin),
+           qua = add(qua_name, idx_qua))
+    })
+  }
+
+  sum_at <- function(th, idx) {
+    if (!length(idx) || anyNA(idx)) return(NA_real_)
+    sum(th[idx])
+  }
+
   rows <- list()
-
-  if (model == "quadratic" && length(cf) >= 3L) {
-    b1n <- names(cf)[2L]; b2n <- names(cf)[3L]
-    rr <- add_fun("x_optimum", function(th) -th[[b1n]] / (2 * th[[b2n]]))
-    if (!is.null(rr)) rows[[length(rows) + 1L]] <- rr
+  for (st in sets) {
+    grp <- st$group
+    if (!length(st$lin) || !length(st$qua)) next
+    if (model == "quadratic") {
+      rr <- add_fun("x_optimum", function(th) {
+        b1 <- sum_at(th, st$lin); b2 <- sum_at(th, st$qua)
+        if (!is.finite(b1) || !is.finite(b2) || b2 == 0) return(NA_real_)
+        -b1 / (2 * b2)
+      }, grp)
+      if (!is.null(rr)) rows[[length(rows) + 1L]] <- rr
+      rr <- add_fun("x_plateau_response", function(th) {
+        b1 <- sum_at(th, st$lin); b2 <- sum_at(th, st$qua); b0 <- th[["(Intercept)"]]
+        xo <- -b1 / (2 * b2)
+        b0 + b1 * xo + b2 * xo^2
+      }, grp)
+      if (!is.null(rr)) rows[[length(rows) + 1L]] <- rr
+    }
   }
-
-  if (model == "linear_plateau") {
-    rows[[length(rows) + 1L]] <- add_fun("breakpoint", function(th) th[["xp"]])
-    rows[[length(rows) + 1L]] <- add_fun("plateau", function(th) th[["a"]] + th[["b"]] * th[["xp"]])
-  }
-  if (model == "quadratic_plateau") {
-    rows[[length(rows) + 1L]] <- add_fun("breakpoint", function(th) th[["xp"]])
-    rows[[length(rows) + 1L]] <- add_fun("plateau", function(th) th[["a"]] + th[["b"]] * th[["xp"]] + th[["c"]] * th[["xp"]]^2)
-  }
-
-  ps <- c(0.10, 0.50, 0.90)
-  if (model == "logistic") {
-    for (pp in ps) rows[[length(rows) + 1L]] <- add_fun(sprintf("ED%d", round(100 * pp)), function(th) th[["xmid"]] - th[["scal"]] * log(1 / pp - 1))
-    rows[[length(rows) + 1L]] <- add_fun("asymptote", function(th) th[["Asym"]])
-  }
-  if (model == "gompertz") {
-    for (pp in ps) rows[[length(rows) + 1L]] <- add_fun(sprintf("ED%d", round(100 * pp)), function(th) -log((-log(pp)) / th[["b"]]) / th[["c"]])
-    rows[[length(rows) + 1L]] <- add_fun("asymptote", function(th) th[["Asym"]])
-  }
-  if (model == "weibull") {
-    for (pp in ps) rows[[length(rows) + 1L]] <- add_fun(sprintf("ED%d", round(100 * pp)), function(th) th[["b"]] * (-log(1 - pp))^(1 / th[["c"]]))
-    rows[[length(rows) + 1L]] <- add_fun("asymptote", function(th) th[["Asym"]])
-  }
-  if (model == "michaelis_menten") {
-    for (pp in ps) rows[[length(rows) + 1L]] <- add_fun(sprintf("ED%d", round(100 * pp)), function(th) pp * th[["Km"]] / (1 - pp))
-    rows[[length(rows) + 1L]] <- add_fun("asymptote", function(th) th[["Vmax"]])
-  }
-  if (model == "mitscherlich") {
-    for (pp in ps) rows[[length(rows) + 1L]] <- add_fun(sprintf("ED%d_gain", round(100 * pp)), function(th) -log(1 - pp) / th[["c"]])
-    rows[[length(rows) + 1L]] <- add_fun("asymptote", function(th) th[["a"]])
+  # The nonlinear models below are parameterised directly, not by polynomial
+  # coefficients, so they use the whole fitted vector and ignore `by`.
+  if (is.null(by)) {
+    add_plain <- function(target, fun) {
+      r <- add_fun(target, fun, NULL)
+      if (!is.null(r)) rows[[length(rows) + 1L]] <<- r
+    }
+    if (model == "linear_plateau") {
+      add_plain("breakpoint", function(th) th[["xp"]])
+      add_plain("plateau", function(th) th[["a"]] + th[["b"]] * th[["xp"]])
+    }
+    if (model == "quadratic_plateau") {
+      add_plain("breakpoint", function(th) th[["xp"]])
+      add_plain("plateau", function(th) th[["a"]] + th[["b"]] * th[["xp"]] + th[["c"]] * th[["xp"]]^2)
+    }
+    ps <- c(0.10, 0.50, 0.90)
+    if (model == "logistic") {
+      for (pp in ps) add_plain(sprintf("ED%d", round(100 * pp)), function(th) th[["xmid"]] - th[["scal"]] * log(1 / pp - 1))
+      add_plain("asymptote", function(th) th[["Asym"]])
+    }
+    if (model == "gompertz") {
+      for (pp in ps) add_plain(sprintf("ED%d", round(100 * pp)), function(th) -log((-log(pp)) / th[["b"]]) / th[["c"]])
+      add_plain("asymptote", function(th) th[["Asym"]])
+    }
+    if (model == "weibull") {
+      for (pp in ps) add_plain(sprintf("ED%d", round(100 * pp)), function(th) th[["b"]] * (-log(1 - pp))^(1 / th[["c"]]))
+      add_plain("asymptote", function(th) th[["Asym"]])
+    }
+    if (model == "michaelis_menten") {
+      for (pp in ps) add_plain(sprintf("ED%d", round(100 * pp)), function(th) pp * th[["Km"]] / (1 - pp))
+      add_plain("asymptote", function(th) th[["Vmax"]])
+    }
+    if (model == "mitscherlich") {
+      for (pp in ps) add_plain(sprintf("ED%d_gain", round(100 * pp)), function(th) -log(1 - pp) / th[["c"]])
+      add_plain("asymptote", function(th) th[["a"]])
+    }
   }
   rows <- Filter(Negate(is.null), rows)
   if (!length(rows)) return(NULL)
@@ -147,26 +207,35 @@ agri_regression <- function(data, response, x,
       form <- .as_formula(response, paste(deparse(form[[3L]]), collapse = ""), design$random_terms)
       fit <- agri_model(data = data, response = response, design = design, formula = form,
                         family = family, engine = engine, ...)
-      targets <- if (family == "gaussian") .regression_targets(fit$engine_fit, model, data, x) else NULL
+      targets <- if (family == "gaussian") .regression_targets(fit$engine_fit, model, data, x, by = by) else NULL
       out <- list(model = model, engine = fit$engine, fit = fit$engine_fit,
                   agri_model = fit, data = data, response = response, x = x,
-                  targets = targets, family = family)
+                  targets = targets, family = family,
+                  note = .regression_targets_note(model, targets, family),
+                  convergence = fit$convergence, warnings = fit$warnings)
       class(out) <- "agri_regression"
       return(out)
     }
+    am <- NULL
     if (family == "gaussian") {
       lm_args <- list(formula = form, data = data)
       if (!is.null(weights)) lm_args$weights <- weights
-      fit <- do.call(stats::lm, lm_args)
+      fw <- .fit_with_warnings(do.call(stats::lm, lm_args))
+      fit <- fw$fit
       eng <- "lm"
     } else {
       am <- agri_model(data = data, response = response, formula = form,
                        family = family, engine = engine, ...)
       fit <- am$engine_fit; eng <- am$engine
+      fw <- list(fit = fit, warnings = am$warnings %||% character(0))
     }
+    tg <- .regression_targets(fit, model, data, x, by = by)
     out <- list(model = model, engine = eng, fit = fit, data = data,
                 response = response, x = x,
-                targets = .regression_targets(fit, model, data, x), family = family)
+                targets = tg, family = family,
+                note = .regression_targets_note(model, tg, family),
+                convergence = .regression_convergence(eng, fit, fw$warnings, am),
+                warnings = fw$warnings)
     class(out) <- "agri_regression"
     return(out)
   }
@@ -206,17 +275,74 @@ agri_regression <- function(data, response, x,
   nls_args <- list(formula = form, data = data, start = st)
   if (!is.null(weights)) nls_args$weights <- weights
   if (requireNamespace("minpack.lm", quietly = TRUE)) {
-    fit <- do.call(minpack.lm::nlsLM, c(nls_args, list(...)))
+    fw <- .fit_with_warnings(do.call(minpack.lm::nlsLM, c(nls_args, list(...))))
     eng <- "minpack.lm"
   } else {
-    fit <- do.call(stats::nls, c(nls_args, list(...)))
+    fw <- .fit_with_warnings(do.call(stats::nls, c(nls_args, list(...))))
     eng <- "nls"
+  }
+  fit <- fw$fit
+  conv <- .regression_convergence(eng, fit, fw$warnings, NULL)
+  # A non-linear fit that stopped at the iteration ceiling still returns a
+  # parameter vector, and the derived targets then look plausible. Say so.
+  if (!isTRUE(conv$ok)) {
+    .agri_warn(sprintf(
+      "Non-linear fit for model '%s' did not converge (%s); the targets below are not reliable.",
+      model, conv$message %||% "reason unavailable"))
   }
   out <- list(model = model, engine = eng, fit = fit, data = data,
               response = response, x = x,
-              targets = .regression_targets(fit, model, data, x), family = family)
+              targets = .regression_targets(fit, model, data, x, by = by), family = family,
+              note = NULL,
+              convergence = conv, warnings = fw$warnings)
+  out$note <- .regression_targets_note(model, out$targets, family)
   class(out) <- "agri_regression"
   out
+}
+
+# Explain an absent target table instead of returning NULL in silence. A cubic
+# curve has no single notable point, so an empty table is correct, but the
+# user needs to be told why rather than left to wonder.
+.regression_targets_note <- function(model, targets, family) {
+  if (!is.null(targets) && nrow(targets)) return(NULL)
+  if (!identical(family, "gaussian")) {
+    return("Targets are reported only for Gaussian fits; this model was fitted with a non-Gaussian family.")
+  }
+  if (identical(model, "cubic")) {
+    return("A cubic curve has no unique notable point, so no agronomic target is reported. Inspect the fitted coefficients, or use agri_compare_curves() to compare shapes between groups.")
+  }
+  if (identical(model, "linear")) {
+    return("A straight line has no optimum, breakpoint or plateau, so no agronomic target is reported.")
+  }
+  "No agronomic target could be derived from the fitted coefficients; inspect coef(fit)."
+}
+
+# Convergence verdict for a regression fit, uniform across the engines used
+# here. Optimisers report a stop either through a return code, through a
+# warning, or through the iteration counter reaching its ceiling.
+.regression_convergence <- function(engine, fit, warnings = character(0), am = NULL) {
+  if (!is.null(am) && is.list(am$convergence)) {
+    out <- am$convergence
+    sus <- .suspicious_warnings(warnings)
+    if (length(sus)) {
+      out$ok <- FALSE
+      out$message <- sus[1L]
+    }
+    return(out)
+  }
+  sus <- .suspicious_warnings(warnings)
+  if (length(sus)) {
+    return(list(ok = FALSE, code = 1L, message = sus[1L], engine = engine))
+  }
+  code <- try(fit$convInfo$isConv, silent = TRUE)
+  if (!inherits(code, "try-error") && is.logical(code) && length(code)) {
+    return(list(ok = isTRUE(code), code = if (isTRUE(code)) 0L else 1L,
+                message = if (isTRUE(code)) NULL else "nls did not report convergence",
+                engine = engine))
+  }
+  iter <- try(fit$convInfo$finIter, silent = TRUE)
+  maxit <- try(fit$convInfo$finTol, silent = TRUE)
+  list(ok = TRUE, code = 0L, message = NULL, engine = engine)
 }
 
 #' Compare quantitative response curves among groups

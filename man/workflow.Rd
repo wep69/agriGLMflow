@@ -29,7 +29,14 @@ agri_example_data(name = c("agri_insects", "agri_disease",
   \item{fit_scan}{Logical; if \code{TRUE}, fit models during family scanning.}
   \item{select}{Logical; if \code{TRUE}, select the best model.}
   \item{design_args}{A list of additional arguments passed to \code{agri_design}.}
-  \item{model_args}{A list of additional arguments passed to \code{agri_model}.}
+  \item{model_args}{A list of additional arguments passed to
+\code{agri_model}. A \code{family} element here overrides the family the
+workflow would otherwise use, both on the automatic path and when
+\code{family} was named explicitly. The reserved keys \code{data},
+\code{response}, \code{design} and \code{formula} are supplied by the
+workflow itself and are refused with an error naming them, instead of
+failing later with a base-R message about a formal argument matched by
+multiple values.}
   \item{posthoc}{Logical; if \code{TRUE}, perform post-hoc inference.}
   \item{make_figures}{Logical; if \code{TRUE}, generate figures.}
   \item{report_file}{An optional character string specifying the report file path.}
@@ -44,6 +51,12 @@ workflow carried out: design declaration, response characterization,
 family screening, model fitting and selection, diagnostics, the requested
 post-hoc inference, predictions, optional figures, the audit trail and,
 when \code{report_file} is supplied, the generated report path.
+
+The workflow fits and holds \code{agri_posthoc} objects for its post-hoc
+step. When \code{make_figures = TRUE}, the four figures that step asks for
+are returned, because \code{agri_plot_means()} and
+\code{agri_plot_contrasts()} accept an \code{agri_posthoc} object as well
+as an \code{agri_model}.
 
 \code{agri_example_data()} returns the requested bundled example dataset.
 }

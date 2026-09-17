@@ -57,7 +57,11 @@
   .require_pkg("gamlss", "GAMLSS distributional regression")
   fam <- .make_gamlss_family(family, family_args)
   args <- c(list(formula = formula, family = fam, data = data), engine_args)
-  do.call(gamlss::gamlss, args)
+  # gamlss prints its deviance trace with cat(), not through a message
+  # condition, so message = FALSE cannot intercept it. Capturing stdout gives
+  # the user the control the argument promises.
+  utils::capture.output(fit <- do.call(gamlss::gamlss, args))
+  fit
 }
 
 .fit_vgam <- function(formula, data, family, family_args = list(), engine_args = list(), additive = FALSE) {
@@ -93,7 +97,7 @@
   do.call(betareg::betareg, args)
 }
 
-.check_convergence_internal <- function(fit, engine) {
+.check_convergence_internal <- function(fit, engine, warnings = character(0)) {
   ok <- TRUE
   code <- NA
   messages <- character()
@@ -126,6 +130,15 @@
     crit <- try(fit@criterion, silent = TRUE)
     ok <- !inherits(crit, "try-error")
     code <- if (ok) 0 else 1
+    # VGAM reports an iteration-limit stop through @iter rather than a non-zero
+    # exit code, so the counter has to be compared with its ceiling.
+    if (ok && .vgam_hit_iteration_limit(fit)) {
+      ok <- FALSE
+      code <- 1L
+      messages <- c(messages, sprintf(
+        "VGAM stopped at the iteration ceiling (%s IRLS iterations) without obtaining convergence.",
+        tryCatch(as.character(fit@iter), error = function(e) "?")))
+    }
   } else if (engine == "ordinal") {
     opt <- fit$optRes %||% list(convergence = 0)
     code <- opt$convergence %||% 0
@@ -136,7 +149,15 @@
   } else {
     ok <- TRUE
   }
-  list(ok = ok, code = code, messages = messages)
+  # Backends also signal a premature stop through warnings rather than codes.
+  # A converged-looking object whose optimiser warned is not admissible.
+  sus <- .suspicious_warnings(warnings)
+  if (length(sus)) {
+    ok <- FALSE
+    code <- 1L
+    messages <- c(messages, sus)
+  }
+  list(ok = ok, code = code, messages = unique(messages))
 }
 
 #' Fit an agriGLMflow model
@@ -211,7 +232,10 @@ agri_model <- function(data = NULL, response = NULL, denominator = NULL, design 
   audit <- .audit_add(audit, "engine", engine,
                       sprintf("Engine selected as compatible with family '%s' and declared design.", family_id))
 
-  fit <- switch(engine,
+  # Backend fits run inside a warning collector: several engines signal a
+  # premature stop through a warning instead of a non-zero return code, and the
+  # convergence gate must see those messages.
+  fw <- .fit_with_warnings(switch(engine,
     stats = .fit_stats(formula, data, family_id, link, engine_args),
     brglm2 = .fit_brglm2(formula, data, family_id, link, engine_args),
     glmmTMB = .fit_glmmtmb(formula, data, family_id, link, ziformula, dispformula, family_args, engine_args),
@@ -222,8 +246,10 @@ agri_model <- function(data = NULL, response = NULL, denominator = NULL, design 
     ordinal = .fit_ordinal(formula, data, family_id, engine_args, link %||% "logit"),
     betareg = .fit_betareg(formula, data, family_id, engine_args, link %||% "logit"),
     .agri_abort(sprintf("Engine '%s' has no implemented fitter.", engine))
-  )
-  conv <- .check_convergence_internal(fit, engine)
+  ))
+  fit <- fw$fit
+  fit_warnings <- fw$warnings
+  conv <- .check_convergence_internal(fit, engine, warnings = fit_warnings)
   if (!isTRUE(conv$ok)) {
     audit <- .audit_add(audit, "convergence", "warning",
                         paste(conv$messages, collapse = " "), status = "warning")
@@ -239,7 +265,7 @@ agri_model <- function(data = NULL, response = NULL, denominator = NULL, design 
     family_args = family_args, engine_args = engine_args,
     diagnostics = NULL, inference = NULL, predictions = NULL,
     model_metrics = list(AIC = .safe_AIC(fit), BIC = .safe_BIC(fit), logLik = .safe_logLik(fit)),
-    warnings = conv$messages, audit = audit,
+    warnings = unique(c(fit_warnings, conv$messages)), audit = audit,
     session = list(R = R.version.string, engine_version = .package_version_safe(if (engine == "stats") "stats" else engine))
   )
   class(out) <- "agri_model"

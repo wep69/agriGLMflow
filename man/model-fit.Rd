@@ -50,7 +50,12 @@ accept parameter-specific formulas directly; additional backend
 settings remain available through \code{engine_args}. For VGAM
 multi-parameter families, family-specific constraints and options
 are passed explicitly through \code{family_args}. The original
-backend fit is retained in \code{engine_fit}.}
+backend fit is retained in \code{engine_fit}. The backend call is
+wrapped in a warning collector: the messages the backend emits are
+captured in \code{warnings} and inspected by the convergence gate, so
+a fit that stopped early through a warning is not reported as
+converged, and a failure is recorded in the audit trail rather than
+passing silently.}
 \arguments{
   \item{data}{A data frame containing the response and predictor variables.}
   \item{response}{A character string or expression specifying the response column name.}
@@ -96,7 +101,14 @@ The fitting functions in this topic return a list of class
     model.}
   \item{\code{engine_fit}}{The original backend fit object.}
   \item{\code{convergence}}{List recording the outcome of the convergence
-    gate.}
+    gate: \code{ok} (logical verdict), \code{code} and \code{messages}.
+    The gate fails, with \code{ok = FALSE}, when the backend signalled a
+    premature stop. That signal may be an exit code, a warning the fit
+    emitted about non-convergence, iterations, \code{maxiter}, a singular
+    or non-positive-definite fit, or the VGAM iteration counter reaching
+    its ceiling, which VGAM reports through the fit rather than through a
+    non-zero code. Backend fits are run inside a warning collector so that
+    these messages reach the gate.}
   \item{\code{ziformula}}{Zero-inflation formula, or \code{NULL}.}
   \item{\code{dispformula}}{Dispersion formula, or \code{NULL}.}
   \item{\code{family_args}}{List of family-constructor arguments used.}
@@ -107,8 +119,9 @@ The fitting functions in this topic return a list of class
     \code{NULL}.}
   \item{\code{predictions}}{Stored predictions, or \code{NULL}.}
   \item{\code{model_metrics}}{List of model fit metrics.}
-  \item{\code{warnings}}{Character vector of warnings raised during
-    fitting.}
+  \item{\code{warnings}}{Character vector of the warnings captured from
+    the backend fit, combined with the messages recorded by the
+    convergence gate.}
   \item{\code{audit}}{Data frame with columns \code{time}, \code{step},
     \code{decision}, \code{reason} and \code{status}.}
   \item{\code{session}}{List recording session and package version

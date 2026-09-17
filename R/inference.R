@@ -32,7 +32,9 @@ agri_anova <- function(object, ...) {
   names(tab)[1L] <- specs
 
   if (bootstrap > 1L) {
-    set.seed(seed)
+    # Draws run under a private seed; the caller's RNG state is restored at the
+    # end of the block, so the package never re-seeds the user's session.
+    .with_seed(seed, {
     boot_arr <- array(NA_real_, dim = c(bootstrap, nrow(mat), ncol(mat)))
     for (b in seq_len(bootstrap)) {
       idx <- sample.int(nrow(data), replace = TRUE)
@@ -51,6 +53,7 @@ agri_anova <- function(object, ...) {
         boot_arr[b, j, ] <- colMeans(bp, na.rm = TRUE)
       }
     }
+    })
     alpha <- (1 - level) / 2
     lo <- apply(boot_arr, c(2, 3), stats::quantile, probs = alpha, na.rm = TRUE)
     hi <- apply(boot_arr, c(2, 3), stats::quantile, probs = 1 - alpha, na.rm = TRUE)
@@ -84,7 +87,9 @@ agri_anova <- function(object, ...) {
   tab <- data.frame(level = as.character(levs), estimate = vals, stringsAsFactors = FALSE)
   names(tab)[1L] <- specs
   if (bootstrap > 1L) {
-    set.seed(seed); B <- matrix(NA_real_, bootstrap, length(levs))
+    # As above: resampling draws must not re-seed the caller's session.
+    .with_seed(seed, {
+    B <- matrix(NA_real_, bootstrap, length(levs))
     for (b in seq_len(bootstrap)) {
       block_name <- if (!is.null(object$design) && length(object$design$blocking)) tail(object$design$blocking, 1L) else NULL
       ids <- if (!is.null(block_name)) object$data[[block_name]] else seq_len(nrow(data))
@@ -111,6 +116,7 @@ agri_anova <- function(object, ...) {
         if (!inherits(pr, "try-error")) B[b, j] <- mean(as.numeric(pr), na.rm = TRUE)
       }
     }
+    })
     alpha <- (1 - level) / 2
     tab$lower.CL <- apply(B, 2L, stats::quantile, probs = alpha, na.rm = TRUE)
     tab$upper.CL <- apply(B, 2L, stats::quantile, probs = 1 - alpha, na.rm = TRUE)
@@ -245,7 +251,24 @@ agri_means <- function(object, specs, scale = c("response", "link"), adjust = "t
   out <- list(method = "emmeans", table = sm, emmeans = em,
               scale = scale, adjust = adjust, object = object)
   class(out) <- "agri_posthoc"
+  # The emmeans path returns analytic intervals; a requested bootstrap count
+  # was silently ignored here, so the two calls looked identical.
+  .warn_bootstrap_not_honoured(bootstrap, object$engine, "agri_means")
   out
+}
+
+# Bootstrapped intervals are implemented only for the VGAM and GLMMadaptive
+# paths. Everywhere else the argument used to be accepted and discarded with no
+# trace, which made bootstrap = 200 indistinguishable from bootstrap = 0.
+.warn_bootstrap_not_honoured <- function(bootstrap, engine, fn) {
+  if (is.null(bootstrap) || !length(bootstrap)) return(invisible(FALSE))
+  n <- suppressWarnings(as.integer(bootstrap)[1L])
+  if (is.na(n) || n <= 1L) return(invisible(FALSE))
+  if (engine %in% c("VGAM", "GLMMadaptive")) return(invisible(FALSE))
+  .agri_warn(sprintf(
+    "In %s(), 'bootstrap' is only honoured for the VGAM and GLMMadaptive engines; engine '%s' returns analytic intervals. Use agri_bootstrap() for resampling-based intervals here.",
+    fn, engine))
+  invisible(TRUE)
 }
 
 #' Contrasts among treatments or planned comparisons
@@ -280,19 +303,34 @@ agri_contrasts <- function(object, specs = NULL, method = "pairwise",
   method_key <- tolower(as.character(method)[1L])
   dunnett <- method_key %in% c("dunnett", "trt.vs.ctrl", "trt.vs.ctrl1", "trt.vs.ctrlk") || tolower(adjust) %in% c("dunnett", "dunnettx")
   if (!is.null(weights)) {
-    ct <- emmeans::contrast(em, method = weights, adjust = adjust)
+    # `weights` is a weighting specification, not a contrast family. Passing it
+    # as `method` produced "Contrast function 'equal.emmc' not found".
+    ct <- emmeans::contrast(em, method = method, weights = weights, adjust = adjust)
   } else if (dunnett) {
-    # `as.character()` on a formula yields one element per deparsed term
-    # ("~", "treatment"), so the predictor name must come from all.vars().
-    specs_var <- all.vars(specs)[1L]
-    levs <- try(levels(em)[[specs_var]], silent = TRUE)
-    if (inherits(levs, "try-error") || is.null(levs)) {
+    specs_var <- .spec_var(specs)
+    levs <- if (is.null(specs_var)) NULL else try(levels(em)[[specs_var]], silent = TRUE)
+    if (is.null(specs_var) || inherits(levs, "try-error") || is.null(levs)) {
       grd <- try(as.data.frame(em), silent = TRUE)
-      levs <- if (!inherits(grd, "try-error") && specs_var %in% names(grd)) unique(as.character(grd[[specs_var]])) else NULL
+      levs <- if (!is.null(specs_var) && !inherits(grd, "try-error") &&
+                  specs_var %in% names(grd)) {
+        unique(as.character(grd[[specs_var]]))
+      } else NULL
     }
-    if (is.null(control)) control <- if (length(levs)) levs[1L] else 1L
+    if (is.null(control)) {
+      control <- if (length(levs)) levs[1L] else 1L
+      # Adopting the first level silently compares everything against whatever
+      # happens to be first, which is rarely the untreated check.
+      .agri_warn(sprintf(
+        "No 'control' level given for Dunnett contrasts; using the first level, '%s'. Pass 'control' explicitly when the untreated check is not the first level.",
+        as.character(control)[1L]))
+    }
     ref <- if (is.numeric(control)) as.integer(control)[1L] else match(as.character(control)[1L], levs)
-    if (!is.finite(ref) || ref < 1L) .agri_abort(sprintf("Control level '%s' could not be resolved for Dunnett contrasts.", as.character(control)[1L]))
+    if (!is.finite(ref) || ref < 1L) {
+      .agri_abort(sprintf(
+        "Control level '%s' was not found. Available levels: %s.",
+        as.character(control)[1L],
+        if (length(levs)) paste(levs, collapse = ", ") else "none resolved"))
+    }
     # emmeans' trt.vs.ctrl family uses Dunnett-style adjustment by default.
     adj_use <- if (tolower(adjust) %in% c("dunnett", "dunnettx", "tukey")) "dunnettx" else adjust
     ct <- emmeans::contrast(em, method = "trt.vs.ctrl", ref = ref, adjust = adj_use)
@@ -305,6 +343,7 @@ agri_contrasts <- function(object, specs = NULL, method = "pairwise",
   out <- list(method = method, table = tab, contrasts = ct, scale = scale,
               adjust = adjust, control = control, object = object)
   class(out) <- "agri_posthoc"
+  .warn_bootstrap_not_honoured(bootstrap, object$engine, "agri_contrasts")
   out
 }
 
@@ -325,7 +364,15 @@ agri_trends <- function(object, variable, by = NULL, delta = NULL, ...) {
   }
   if (object$engine != "VGAM") {
     .require_pkg("emmeans", "estimated marginal trends")
-    tr <- emmeans::emtrends(object$engine_fit, specs = by, var = variable, ...)
+    # `delta` was previously accepted and discarded on this branch, which is
+    # the branch that serves stats, glmmTMB, gamlss and ordinal. emtrends
+    # exposes it as `delta.var`.
+    if (is.null(delta)) {
+      tr <- emmeans::emtrends(object$engine_fit, specs = by, var = variable, ...)
+    } else {
+      tr <- emmeans::emtrends(object$engine_fit, specs = by, var = variable,
+                              delta.var = delta, ...)
+    }
     out <- list(method = "emtrends", table = as.data.frame(summary(tr, infer = c(TRUE, TRUE))), trends = tr, object = object)
     class(out) <- "agri_posthoc"
     return(out)
@@ -425,6 +472,12 @@ agri_cld <- function(object, specs, adjust = "tukey", ...) {
   }
   .require_pkg("emmeans", "compact-letter display")
   .require_pkg("multcompView", "compact-letter display")
+  # Resolve the predictor name once: `specs` may be a formula or a string, and
+  # as.character() on a formula yields c("~", "treatment"), never the column.
+  level_col <- .spec_var(specs)
+  if (is.null(level_col)) {
+    .agri_abort("Provide the predictor for the compact-letter display, for example specs = ~ treatment.")
+  }
   em <- emmeans::emmeans(object$engine_fit, specs = specs, ...)
   ct <- emmeans::contrast(em, method = "pairwise", adjust = adjust)
   tt <- as.data.frame(summary(ct))
@@ -434,20 +487,26 @@ agri_cld <- function(object, specs, adjust = "tukey", ...) {
   # factor levels and every letter would come back NA. Collapse only the
   # separator so level names that legitimately contain spaces are preserved.
   pvals <- tt$p.value
-  contrast_names <- gsub(" - ", "-", as.character(tt[[1L]]), fixed = TRUE)
-  # Duplicated factor levels would otherwise produce duplicate names; keep the
-  # first occurrence so multcompLetters receives one p-value per pair.
+  contrast_names <- gsub("\\s*-\\s*", "-", as.character(tt[[1L]]))
+  # emmeans prints ratios as "A / B" on the response scale; normalise those too.
+  contrast_names <- gsub("\\s*/\\s*", "-", contrast_names)
   keep <- !duplicated(contrast_names)
   pvals <- pvals[keep]
   names(pvals) <- contrast_names[keep]
   pvals <- pvals[is.finite(pvals)]
+  if (!length(pvals)) {
+    .agri_abort("No finite pairwise P values are available for the compact-letter display.")
+  }
   cld_result <- multcompView::multcompLetters(pvals)
   out <- as.data.frame(em)
-  # Match levels to CLD letters. The predictor name must be extracted with
-  # all.vars(): as.character(~ treatment) returns c("~", "treatment").
-  level_col <- all.vars(specs)[1L]
   out$.cld <- cld_result$Letters[match(trimws(as.character(out[[level_col]])),
                                        trimws(names(cld_result$Letters)))]
+  # A silent all-NA column looks like a valid table. Say so instead.
+  if (all(is.na(out$.cld))) {
+    .agri_warn(sprintf(
+      "Compact-letter display could not be matched to the levels of '%s'; returning means without letters.",
+      level_col))
+  }
   out
 }
 

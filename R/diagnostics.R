@@ -58,8 +58,8 @@ agri_diagnose <- function(object, simulate = FALSE, nsim = 250L,
     zero_note <- if (is.finite(expected_zero) && zero_obs > expected_zero * 1.25) "more_zeros_than_poisson_expectation" else "compatible_with_poisson_zero_rate"
   }
   if (isTRUE(simulate) && is.numeric(y) && grepl("count", object$family_info$domain[1L])) {
-    set.seed(seed)
-    zs <- try(stats::simulate(fit, nsim = nsim), silent = TRUE)
+    # Draw under a private seed so the caller's RNG state survives the call.
+    zs <- .with_seed(seed, try(stats::simulate(fit, nsim = nsim), silent = TRUE))
     if (!inherits(zs, "try-error")) {
       zm <- as.matrix(zs)
       zfrac <- colMeans(zm == 0, na.rm = TRUE)
@@ -71,8 +71,7 @@ agri_diagnose <- function(object, simulate = FALSE, nsim = 250L,
 
   dharma <- NULL
   if (isTRUE(simulate) && object$engine %in% c("stats", "glmmTMB", "lme4", "GLMMadaptive") && requireNamespace("DHARMa", quietly = TRUE)) {
-    set.seed(seed)
-    dharma <- try(DHARMa::simulateResiduals(fit, n = nsim, plot = FALSE), silent = TRUE)
+    dharma <- .with_seed(seed, try(DHARMa::simulateResiduals(fit, n = nsim, plot = FALSE), silent = TRUE))
     if (inherits(dharma, "try-error")) {
       messages <- c(messages, "DHARMa simulation failed; native diagnostics retained.")
       dharma <- NULL

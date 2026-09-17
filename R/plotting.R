@@ -127,12 +127,29 @@ agri_plot_diagnostics <- function(object, panel = c("residual_fitted", "qq", "ro
 }
 
 #' Plot estimated means or category probabilities
+#'
+#' Accepts either an \code{agri_model} (and computes the means) or an
+#' \code{agri_posthoc} object returned by \code{agri_means()}, which already
+#' carries both the table and the fitted model.
 #' @export
-agri_plot_means <- function(object, specs, ...) {
+agri_plot_means <- function(object, specs = NULL, ...) {
   .gg_required()
-  ph <- agri_means(object, specs = specs, ...)
+  if (inherits(object, "agri_posthoc")) {
+    ph <- object
+    model <- ph$object
+    if (is.null(model)) .agri_abort("The agri_posthoc object does not carry the fitted model.")
+  } else {
+    if (is.null(specs)) .agri_abort("Provide 'specs' (for example specs = ~ treatment) or pass an agri_posthoc object.")
+    model <- object
+    ph <- agri_means(model, specs = specs, ...)
+  }
   d <- ph$table
-  if (object$engine == "VGAM") {
+  if (is.null(specs)) {
+    cand <- names(d)[vapply(d, function(z) is.factor(z) || is.character(z), logical(1))]
+    specs <- if (length(cand)) cand[1L] else NULL
+  }
+  if (is.null(specs)) .agri_abort("Could not identify the grouping column; provide 'specs'.")
+  if (model$engine == "VGAM") {
     return(ggplot2::ggplot(d, ggplot2::aes(x = .data[[specs]], y = estimate, group = outcome)) +
              ggplot2::geom_point(position = ggplot2::position_dodge(width = 0.25)) +
              ggplot2::geom_line(ggplot2::aes(group = outcome), position = ggplot2::position_dodge(width = 0.25)) +
@@ -143,9 +160,9 @@ agri_plot_means <- function(object, specs, ...) {
   hi <- grep("upper", names(d), ignore.case = TRUE, value = TRUE)[1L]
   if (is.na(est) || !length(est)) .agri_abort("Could not identify the estimated-mean column.")
   p <- ggplot2::ggplot(d, ggplot2::aes(x = .data[[specs]], y = .data[[est]]))
-  yraw <- .response_vector(object)
-  if (length(specs) == 1L && specs %in% names(object$data) && is.numeric(yraw) && is.null(dim(yraw))) {
-    raw <- data.frame(group = object$data[[specs]], observed = as.numeric(yraw))
+  yraw <- .response_vector(model)
+  if (length(specs) == 1L && specs %in% names(model$data) && is.numeric(yraw) && is.null(dim(yraw))) {
+    raw <- data.frame(group = model$data[[specs]], observed = as.numeric(yraw))
     names(raw)[1L] <- specs
     p <- p + ggplot2::geom_jitter(data = raw, ggplot2::aes(x = .data[[specs]], y = observed),
                                   inherit.aes = FALSE, width = 0.07, height = 0, alpha = 0.45)
@@ -156,10 +173,18 @@ agri_plot_means <- function(object, specs, ...) {
 }
 
 #' Plot model contrasts
+#'
+#' Accepts either an \code{agri_model} (and computes the contrasts) or an
+#' \code{agri_posthoc} object returned by \code{agri_contrasts()}.
 #' @export
-agri_plot_contrasts <- function(object, specs, ...) {
+agri_plot_contrasts <- function(object, specs = NULL, ...) {
   .gg_required()
-  ct <- agri_contrasts(object, specs = specs, ...)
+  if (inherits(object, "agri_posthoc")) {
+    ct <- object
+  } else {
+    if (is.null(specs)) .agri_abort("Provide 'specs' (for example specs = ~ treatment) or pass an agri_posthoc object.")
+    ct <- agri_contrasts(object, specs = specs, ...)
+  }
   d <- ct$table
   est <- intersect(c("estimate", "odds.ratio", "ratio"), names(d))[1L]
   if (is.na(est) || !length(est)) .agri_abort("Could not identify contrast estimate.")

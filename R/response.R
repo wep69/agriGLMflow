@@ -122,14 +122,14 @@ agri_response <- function(data, response, process = NULL, denominator = NULL,
 #' Inspect response metadata
 #' @export
 agri_response_info <- function(response) {
-  if (!inherits(response, "agri_response")) .agri_abort("'response' must be an agri_response object.")
+  response <- .coerce_response(response)
   unclass(response)
 }
 
 #' Map a response to admissible distribution domains
 #' @export
 agri_distribution_map <- function(response) {
-  if (!inherits(response, "agri_response")) .agri_abort("'response' must be an agri_response object.")
+  response <- .coerce_response(response)
   switch(response$type,
     count = c("count", "zero_inflated_count", "hurdle_count", "truncated_count"),
     binary = c("binary", "binomial"),

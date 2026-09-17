@@ -41,8 +41,9 @@
 #' @export
 agri_simulate <- function(object, nsim = 1L, seed = NULL, ...) {
   if (!inherits(object, "agri_model")) .agri_abort("'object' must be an agri_model.")
-  if (!is.null(seed)) set.seed(seed)
-  out <- try(stats::simulate(object$engine_fit, nsim = nsim, ...), silent = TRUE)
+  # The seed must not leak into the caller's session: without restoring
+  # .Random.seed, every later draw depends on the package seed.
+  out <- .with_seed(seed, try(stats::simulate(object$engine_fit, nsim = nsim, ...), silent = TRUE))
   if (inherits(out, "try-error")) {
     .agri_abort(sprintf("Simulation is not implemented for engine '%s' / family '%s' in the installed backend version.", object$engine, object$family))
   }
@@ -64,9 +65,18 @@ agri_bootstrap <- function(object, R = 500L, unit = NULL,
                            type = c("cluster", "parametric"), seed = 123,
                            statistic = c("coef", "prediction"), newdata = NULL, ...) {
   if (!inherits(object, "agri_model")) .agri_abort("'object' must be an agri_model.")
-  type <- match.arg(type)
-  statistic <- match.arg(statistic)
-  set.seed(seed)
+  # Draw under a private seed and restore the caller's RNG state afterwards.
+  .with_seed(seed, .agri_bootstrap_impl(object, R = R, unit = unit, type = type,
+                                        seed = seed, statistic = statistic,
+                                        newdata = newdata, ...))
+}
+
+.agri_bootstrap_impl <- function(object, R, unit, type, seed, statistic, newdata, ...) {
+  # The choices are given explicitly: match.arg() on a helper argument without
+  # a default fails with "argument is missing, with no default" because it
+  # looks up the formal's default value.
+  type <- match.arg(type, c("cluster", "parametric"))
+  statistic <- match.arg(statistic, c("coef", "prediction"))
   data <- object$data
   results <- vector("list", R)
 
@@ -80,7 +90,7 @@ agri_bootstrap <- function(object, R = 500L, unit = NULL,
       bd[[yname]] <- sims[[b]]
       bm <- try(agri_refit(object, data = bd), silent = TRUE)
       if (inherits(bm, "try-error")) next
-      results[[b]] <- if (statistic == "coef") try(stats::coef(bm$engine_fit), silent = TRUE) else try(agri_predict(bm, newdata = newdata), silent = TRUE)
+      results[[b]] <- if (statistic == "coef") .bootstrap_coef(bm) else try(agri_predict(bm, newdata = newdata), silent = TRUE)
     }
   } else {
     unit <- .bootstrap_unit(object, unit)
@@ -111,16 +121,35 @@ agri_bootstrap <- function(object, R = 500L, unit = NULL,
       }
       bm <- try(agri_refit(object, data = bd), silent = TRUE)
       if (inherits(bm, "try-error")) next
-      results[[b]] <- if (statistic == "coef") try(stats::coef(bm$engine_fit), silent = TRUE) else try(agri_predict(bm, newdata = newdata), silent = TRUE)
+      results[[b]] <- if (statistic == "coef") .bootstrap_coef(bm) else try(agri_predict(bm, newdata = newdata), silent = TRUE)
     }
   }
   valid <- vapply(results, function(z) !is.null(z) && !inherits(z, "try-error"), logical(1))
   vals <- results[valid]
   mat <- if (length(vals)) try(do.call(rbind, lapply(vals, as.numeric)), silent = TRUE) else NULL
   if (inherits(mat, "try-error")) mat <- NULL
+  if (!is.null(mat) && statistic == "coef") {
+    # stats::coef() on a mixed fit returns a list indexed by grouping factor,
+    # so the positional read used to produce an all-NA matrix while
+    # `successful` still reported every replicate as fine.
+    cn <- names(vals[[1L]])
+    if (!is.null(cn) && ncol(mat) == length(cn)) colnames(mat) <- cn
+    if (all(is.na(mat))) {
+      .agri_abort(sprintf(
+        "Bootstrap coefficient matrix could not be assembled for engine '%s'. Use statistic = 'prediction'.",
+        object$engine))
+    }
+  }
   structure(list(type = type, R = R, successful = sum(valid), unit = unit,
                  statistic = statistic, values = vals, matrix = mat, seed = seed,
                  model = object), class = "agri_bootstrap")
+}
+
+# Fixed-effect coefficients for one bootstrap replicate, uniform across engines.
+.bootstrap_coef <- function(object) {
+  cf <- try(.reg_coef(object$engine_fit), silent = TRUE)
+  if (inherits(cf, "try-error") || is.null(cf)) return(NULL)
+  cf
 }
 
 .cv_observed <- function(data, response) {
@@ -214,7 +243,13 @@ agri_cv <- function(object, v = 5L, unit = NULL,
                     scheme = c("grouped_kfold", "leave_one_environment_out"),
                     seed = 123, ...) {
   if (!inherits(object, "agri_model")) .agri_abort("'object' must be an agri_model.")
-  scheme <- match.arg(scheme)
+  # Fold assignment draws under a private seed; the caller's RNG is restored.
+  .with_seed(seed, .agri_cv_impl(object, v = v, unit = unit, scheme = scheme,
+                                 seed = seed, ...))
+}
+
+.agri_cv_impl <- function(object, v, unit, scheme, seed, ...) {
+  scheme <- match.arg(scheme, c("grouped_kfold", "leave_one_environment_out"))
   data <- object$data
   ynames <- object$response$name
   if (!length(ynames) || !all(ynames %in% names(data))) {
@@ -237,7 +272,6 @@ agri_cv <- function(object, v = 5L, unit = NULL,
     unit <- .bootstrap_unit(object, unit)
     if (is.null(unit)) .agri_abort("Grouped k-fold CV requires an explicit unit or a design with an experimental-unit/block identifier.")
     .assert_columns(data, unit, "cross-validation")
-    set.seed(seed)
     ids <- unique(data[[unit]])
     fold_id <- sample(rep(seq_len(min(v, length(ids))), length.out = length(ids)))
     folds <- lapply(seq_len(max(fold_id)), function(k) which(data[[unit]] %in% ids[fold_id == k]))
@@ -285,7 +319,12 @@ agri_cv <- function(object, v = 5L, unit = NULL,
 #' @export
 agri_power <- function(object, term, nsim = 500L, alpha = 0.05, seed = 123, ...) {
   if (!inherits(object, "agri_model")) .agri_abort("'object' must be an agri_model.")
-  set.seed(seed)
+  # Simulation runs under a private seed; the caller's RNG state is restored.
+  .with_seed(seed, .agri_power_impl(object, term = term, nsim = nsim,
+                                    alpha = alpha, seed = seed, ...))
+}
+
+.agri_power_impl <- function(object, term, nsim, alpha, seed, ...) {
   sims <- agri_simulate(object, nsim = nsim, seed = seed)
   if (is.data.frame(sims)) sims <- as.list(sims)
   yname <- object$response$name

@@ -1,3 +1,15 @@
+# Capability label for each engine, shared so that agri_engines() and
+# agri_dependencies() expose the same columns. Previously only the latter
+# carried `feature`, so asking agri_engines() for that column failed with an
+# undefined-column error and nothing in the interface announced the difference.
+.engine_features <- c(
+  stats = "base GLM", glmmTMB = "advanced GLMM", lme4 = "reference GLMM",
+  GLMMadaptive = "adaptive-quadrature GLMM", gamlss = "distributional regression",
+  VGAM = "vector, multinomial, ordinal and compositional models",
+  ordinal = "ordinal mixed models", betareg = "beta regression",
+  brglm2 = "bias-reduced GLM", mgcv = "smooth regression", brms = "Bayesian extension"
+)
+
 #' List modelling engines and their current availability
 #' @export
 agri_engines <- function() {
@@ -10,6 +22,7 @@ agri_engines <- function() {
     package = unname(pkgs),
     available = vapply(pkgs, requireNamespace, logical(1), quietly = TRUE),
     version = vapply(pkgs, .package_version_safe, character(1)),
+    feature = unname(.engine_features[names(pkgs)]),
     stringsAsFactors = FALSE
   )
 }
@@ -17,16 +30,9 @@ agri_engines <- function() {
 #' Report optional dependencies
 #' @export
 agri_dependencies <- function() {
-  x <- agri_engines()
-  feature <- c(
-    stats = "base GLM", glmmTMB = "advanced GLMM", lme4 = "reference GLMM",
-    GLMMadaptive = "adaptive-quadrature GLMM", gamlss = "distributional regression",
-    VGAM = "vector, multinomial, ordinal and compositional models",
-    ordinal = "ordinal mixed models", betareg = "beta regression",
-    brglm2 = "bias-reduced GLM", mgcv = "smooth regression", brms = "Bayesian extension"
-  )
-  x$feature <- unname(feature[x$engine])
-  x
+  # Same registry and same columns as agri_engines(); the two differ only in
+  # what the help page emphasises.
+  agri_engines()
 }
 
 .route_engine <- function(family, design = NULL, requested = "auto", formula = NULL) {

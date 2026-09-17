@@ -12,16 +12,31 @@
 \alias{agri_plot_family_scan}
 \title{Scientific graphics for agriGLMflow analyses}
 \description{Creates ggplot2 objects for observed data, fitted values, residual diagnostics, means, contrasts, regressions, interactions, distributions, random effects and family comparisons.}
-\details{The graphical philosophy is to show observed data together with model estimates and uncertainty whenever the response and model class make that scientifically meaningful. Bar charts of continuous means are not the default.}
+\details{The graphical philosophy is to show observed data together with
+model estimates and uncertainty whenever the response and model class make
+that scientifically meaningful. Bar charts of continuous means are not the
+default. \code{agri_plot_means()} and \code{agri_plot_contrasts()} accept
+either an \code{agri_model}, from which they compute the means or the
+contrasts, or the \code{agri_posthoc} object returned by
+\code{agri_means()} and \code{agri_contrasts()}, which already carries the
+table and the fitted model. When an \code{agri_posthoc} object is supplied,
+\code{specs} may be omitted; \code{agri_plot_means()} then reads the
+grouping column from the stored table. The figure step of the integrated
+workflow relies on this, because the workflow holds \code{agri_posthoc}
+objects.}
 \arguments{
-  \item{object}{An object of class \code{agri_model}, \code{agri_regression}, or \code{agri_family_scan}.}
+  \item{object}{An object of class \code{agri_model},
+\code{agri_regression}, \code{agri_family_scan}, or an \code{agri_posthoc}
+object for \code{agri_plot_means()} and \code{agri_plot_contrasts()}.}
   \item{data}{A data frame containing the data to plot.}
   \item{response}{A character string or expression specifying the response variable.}
   \item{treatment}{An optional character string or expression specifying the treatment variable.}
   \item{type}{A character string specifying the plot type.}
   \item{time}{An optional character string or expression specifying the time variable.}
   \item{group}{An optional character string or expression specifying the grouping variable.}
-  \item{specs}{A character string or formula specifying the variables for means or contrasts.}
+  \item{specs}{A character string or formula specifying the variables for
+means or contrasts. Required when an \code{agri_model} is supplied; may be
+omitted when an \code{agri_posthoc} object is supplied.}
   \item{panel}{A character string specifying the diagnostic panel type.}
   \item{n}{An integer specifying the number of prediction points.}
   \item{x}{A character string or expression specifying the x-axis variable.}
